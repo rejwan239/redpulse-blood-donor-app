@@ -1,0 +1,16 @@
+{
+  "short_name": "RedPulse",
+  "name": "RedPulse - Instant Blood Radar",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#dc2626",
+  "theme_color": "#dc2626",
+  "display": "standalone"
+}
