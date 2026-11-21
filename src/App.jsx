@@ -27,7 +27,6 @@ import {
   Phone,
   ShieldAlert,
   Search,
-  MessageCircle,
   Edit3,
   Award,
   User,
@@ -50,10 +49,7 @@ import {
   AlertTriangle,
   PlusCircle,
   X,
-  CalendarClock,
   Car,
-  Moon,
-  Sun,
   Mail,
   CheckCircle2,
   Quote,
@@ -67,11 +63,93 @@ import {
   History,
   Copy,
   Clock,
+  Heart,
+  Sparkles,
+  ClipboardCheck,
+  EyeOff,
+  Ban,
+  PhoneCall,
+  Palette,
+  Activity,
+  FirstAid,
+  Stethoscope,
 } from "lucide-react";
 
 // Master Admin Configuration
 const MASTER_ADMIN_PHONE = "01345365867";
 const ADMIN_SECRET_PIN = "7596";
+
+// 120-Day Blood Donation Cooldown Constant
+const COOLDOWN_DAYS = 120;
+
+// 5 Premium Themes Configuration
+const APP_THEMES = {
+  crimson: {
+    label: "Crimson Pulse",
+    isDark: false,
+    pageBg: "bg-slate-50 text-slate-900",
+    headerBg: "from-red-700 via-red-600 to-rose-600",
+    cardBg: "bg-white border-slate-200/80 text-slate-800 shadow-md shadow-slate-200/50",
+    inputBg: "bg-slate-50 border-slate-200 text-slate-900 focus:border-red-500",
+    subText: "text-slate-500",
+    navBg: "bg-white/95 border-slate-200",
+    accentText: "text-red-600",
+    primaryBtn:
+      "bg-gradient-to-b from-red-500 to-red-600 hover:from-red-500 hover:to-red-700 text-white font-extrabold border-b-4 border-red-800 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-red-600/25 transition-all",
+  },
+  midnight: {
+    label: "Midnight Dark",
+    isDark: true,
+    pageBg: "bg-[#0B1120] text-slate-100",
+    headerBg: "from-slate-900 via-red-950 to-slate-900",
+    cardBg: "bg-[#111827]/95 border-slate-800/90 text-slate-100 shadow-xl shadow-black/30",
+    inputBg: "bg-[#1E293B] border-slate-700 text-white placeholder-slate-400 focus:border-red-500",
+    subText: "text-slate-400",
+    navBg: "bg-[#0B1120]/95 border-slate-800",
+    accentText: "text-red-400",
+    primaryBtn:
+      "bg-gradient-to-b from-red-500 to-red-600 hover:from-red-500 hover:to-red-700 text-white font-extrabold border-b-4 border-red-900 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-red-600/25 transition-all",
+  },
+  emerald: {
+    label: "Emerald Care",
+    isDark: false,
+    pageBg: "bg-emerald-50/60 text-slate-900",
+    headerBg: "from-emerald-700 via-teal-600 to-emerald-600",
+    cardBg: "bg-white border-emerald-200/80 text-slate-800 shadow-md shadow-emerald-200/40",
+    inputBg: "bg-emerald-50/50 border-emerald-200 text-slate-900 focus:border-emerald-600",
+    subText: "text-slate-500",
+    navBg: "bg-white/95 border-emerald-200",
+    accentText: "text-emerald-600",
+    primaryBtn:
+      "bg-gradient-to-b from-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-700 text-white font-extrabold border-b-4 border-emerald-800 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-emerald-600/25 transition-all",
+  },
+  ocean: {
+    label: "Royal Ocean",
+    isDark: false,
+    pageBg: "bg-sky-50/70 text-slate-900",
+    headerBg: "from-blue-800 via-indigo-700 to-sky-700",
+    cardBg: "bg-white border-sky-200/80 text-slate-800 shadow-md shadow-sky-200/40",
+    inputBg: "bg-sky-50/50 border-sky-200 text-slate-900 focus:border-blue-600",
+    subText: "text-slate-500",
+    navBg: "bg-white/95 border-sky-200",
+    accentText: "text-blue-600",
+    primaryBtn:
+      "bg-gradient-to-b from-blue-600 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-extrabold border-b-4 border-blue-900 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-blue-600/25 transition-all",
+  },
+  sunset: {
+    label: "Sunset Amber",
+    isDark: false,
+    pageBg: "bg-amber-50/70 text-stone-900",
+    headerBg: "from-amber-700 via-orange-600 to-red-700",
+    cardBg: "bg-white border-amber-200/80 text-stone-800 shadow-md shadow-amber-200/40",
+    inputBg: "bg-amber-50/50 border-amber-200 text-stone-900 focus:border-amber-600",
+    subText: "text-stone-500",
+    navBg: "bg-white/95 border-amber-200",
+    accentText: "text-amber-700",
+    primaryBtn:
+      "bg-gradient-to-b from-amber-500 to-orange-600 hover:from-amber-500 hover:to-orange-700 text-white font-extrabold border-b-4 border-amber-800 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-amber-600/25 transition-all",
+  },
+};
 
 // Emergency Blood Bank & Ambulance Directory
 const EMERGENCY_DIRECTORY = [
@@ -83,6 +161,40 @@ const EMERGENCY_DIRECTORY = [
   { name: "National Emergency Service (Ambulance & Police)", area: "All Bangladesh", phone: "999", type: "Ambulance" },
   { name: "Anjuman Mufidul Islam Ambulance", area: "Dhaka & Savar", phone: "01711-539634", type: "Ambulance" },
   { name: "Savar Highway Emergency Ambulance", area: "Savar, Dhaka", phone: "01712-987654", type: "Ambulance" },
+];
+
+// Inspirational Benefits / Advantages of Blood Donation Data
+const DONATION_BENEFITS = [
+  {
+    titleBn: "হার্ট অ্যাটাক ও স্ট্রোকের ঝুঁকি কমায়",
+    titleEn: "Reduces Heart Attack & Stroke Risk",
+    desc: "নিয়মিত রক্তদান করলে রক্তে অতিরিক্ত আয়রনের ভারসাম্য ঠিক থাকে এবং রক্ত ঘন হওয়ার প্রবণতা কমে, যা হৃদরোগের ঝুঁকি প্রায় ৮৮% পর্যন্ত কমিয়ে দেয়।",
+    badge: "Healthy Heart",
+  },
+  {
+    titleBn: "শরীরে নতুন ও সতেজ রক্তকণিকা তৈরি হয়",
+    titleEn: "Stimulates Fresh Blood Cell Production",
+    desc: "রক্ত দেওয়ার পর শরীরের বোন ম্যারো দ্রুত নতুন ও সতেজ লোহিত রক্তকণিকা তৈরি করতে উদ্দীপ্ত হয়, যা শরীরকে আরও কর্মক্ষম ও রোগপ্রতিরোধী করে তোলে।",
+    badge: "Cell Renewal",
+  },
+  {
+    titleBn: "বিনামূল্যে নিয়মিত স্বাস্থ্য পরীক্ষা",
+    titleEn: "Free Mini Health Checkup",
+    desc: "প্রতিবার রক্তদানের আগে আপনার রক্তচাপ (BP), পালস, হিমোগ্লোবিন এবং হেপাটাইটিস বি, সি, ম্যালেরিয়া ও সিফিলিসের মতো রোগের ফ্রি স্ক্রিনিং হয়ে যায়।",
+    badge: "Free Checkup",
+  },
+  {
+    titleBn: "ক্যালোরি বার্ন ও ওজন নিয়ন্ত্রণ",
+    titleEn: "Burns Calories & Supports Weight Balance",
+    desc: "এক ব্যাগ রক্তদান করলে শরীরের স্বাভাবিক প্রক্রিয়ায় প্রায় ৬০০ থেকে ৬৫০ ক্যালোরি পর্যন্ত শক্তি খরচ হয়, যা শরীরের বিপাক ক্রিয়া সচল রাখে।",
+    badge: "~650 kcal Burn",
+  },
+  {
+    titleBn: "একটি জীবন ও একটি পরিবার বাঁচানোর প্রশান্তি",
+    titleEn: "Save Up to 3 Lives with One Donation",
+    desc: "আপনার দেওয়া এক ব্যাগ রক্ত থেকে লোহিত কণিকা, প্লাজমা ও প্লেটলেট আলাদা করে সর্বোচ্চ ৩ জন মুমূর্ষু রোগীর প্রাণ বাঁচানো সম্ভব।",
+    badge: "3 Lives Saved",
+  },
 ];
 
 // Leaflet Marker Icon Fix
@@ -135,11 +247,11 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// 90-Day Smart Cooldown Check
+// 120-Day Smart Cooldown Check
 function getRemainingDays(lastDate) {
   if (!lastDate) return 0;
   const diffDays = Math.floor((new Date() - new Date(lastDate)) / (1000 * 60 * 60 * 24));
-  return diffDays >= 90 ? 0 : 90 - diffDays;
+  return diffDays >= COOLDOWN_DAYS ? 0 : COOLDOWN_DAYS - diffDays;
 }
 
 // Calculate Age from Date of Birth
@@ -153,6 +265,30 @@ function calculateAge(dobString) {
     age--;
   }
   return age;
+}
+
+// Auto-Detect Donor Readiness from Profile Details (Weight, Age, Hemoglobin, Medication, 120-Day Cooldown)
+function evaluateDonorReadiness(user) {
+  if (!user) return { ready: false, reason: "Profile incomplete" };
+  const remDays = getRemainingDays(user.lastDonation);
+  if (remDays > 0) {
+    return { ready: false, reason: `আরও ${remDays} দিন বিরতি বাকি (${COOLDOWN_DAYS}-day rule)` };
+  }
+  const age = calculateAge(user.dob);
+  if (age !== null && (age < 18 || age > 60)) {
+    return { ready: false, reason: `বয়স ১৮-৬০ বছরের মধ্যে হতে হবে (বর্তমান: ${age})` };
+  }
+  const weight = Number(user.weight);
+  if (user.weight && weight < 50) {
+    return { ready: false, reason: `ওজন কমপক্ষে ৫০ কেজি হতে হবে (${weight} kg)` };
+  }
+  if (user.hemoglobin === "Low") {
+    return { ready: false, reason: "হিমোগ্লোবিন মাত্রা কম (Low)" };
+  }
+  if (user.onMedication === "Yes") {
+    return { ready: false, reason: "বর্তমানে ওষুধ / অ্যান্টিবায়োটিক চলছে" };
+  }
+  return { ready: true, reason: "রক্তদানের জন্য সম্পূর্ণ প্রস্তুত" };
 }
 
 function MapRecenter({ center }) {
@@ -173,11 +309,14 @@ function LocationPicker({ setHospitalPos }) {
 }
 
 export default function App() {
-  // Smooth Midnight Dark Mode State
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("redpulse_dark") === "true");
+  // Multi-Theme State (5 Themes)
+  const [themeKey, setThemeKey] = useState(() => localStorage.getItem("redpulse_theme") || "crimson");
+  const currentTheme = APP_THEMES[themeKey] || APP_THEMES.crimson;
+  const darkMode = currentTheme.isDark;
+
   useEffect(() => {
-    localStorage.setItem("redpulse_dark", darkMode);
-  }, [darkMode]);
+    localStorage.setItem("redpulse_theme", themeKey);
+  }, [themeKey]);
 
   // Auth State ('login' | 'register' | 'forgot')
   const [currentUser, setCurrentUser] = useState(() =>
@@ -192,7 +331,11 @@ export default function App() {
   const [passwordInput, setPasswordInput] = useState("");
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [nameInput, setNameInput] = useState("");
+  const [genderInput, setGenderInput] = useState("Male");
   const [dobInput, setDobInput] = useState("");
+  const [weightInput, setWeightInput] = useState("58");
+  const [hemoglobinInput, setHemoglobinInput] = useState("Normal");
+  const [medicationInput, setMedicationInput] = useState("No");
   const [bloodInput, setBloodInput] = useState("O+");
   const [addressInput, setAddressInput] = useState("");
   const [lastDonationInput, setLastDonationInput] = useState("");
@@ -200,6 +343,7 @@ export default function App() {
   // Navigation & UI Visibility States
   const [activeTab, setActiveTab] = useState("radar");
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
   const [showExtraFormFields, setShowExtraFormFields] = useState(false);
   const [showLocationMap, setShowLocationMap] = useState(false);
   const [showLiveTrackingMap, setShowLiveTrackingMap] = useState(false);
@@ -239,11 +383,18 @@ export default function App() {
   );
   const [liveRequestData, setLiveRequestData] = useState(null);
 
-  // Direct Chat State
+  // Direct Chat & Real-Time Notification State
   const [chatRoomId, setChatRoomId] = useState(null);
+  const [chatPartnerPhone, setChatPartnerPhone] = useState("");
   const [chatPartnerName, setChatPartnerName] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
+  const [chatAlertBanner, setChatAlertBanner] = useState(null);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const lastSeenNotifIdRef = useRef(null);
+
+  // Approved Phone Access List (Admin Approval-Based Phone Unlock)
+  const [approvedContactsList, setApprovedContactsList] = useState([]);
 
   // User Reviews State (Admin Moderated)
   const [allReviews, setAllReviews] = useState([]);
@@ -259,15 +410,28 @@ export default function App() {
   // Directory & Banks Data
   const [allUsers, setAllUsers] = useState([]);
   const [filterBlood, setFilterBlood] = useState("ALL");
+  const [filterGender, setFilterGender] = useState("ALL");
   const [filterArea, setFilterArea] = useState("");
   const [bankSearch, setBankSearch] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Profile Edit, SOS Medical Card & Verification
+  // Interactive Eligibility Quiz State (3-Dot Menu Section)
+  const [quizAge, setQuizAge] = useState("");
+  const [quizWeight, setQuizWeight] = useState("");
+  const [quizDays, setQuizDays] = useState("125");
+  const [quizHemo, setQuizHemo] = useState("Normal");
+  const [quizMed, setQuizMed] = useState("No");
+  const [quizResult, setQuizResult] = useState(null);
+
+  // Profile Edit, Password Change, SOS Medical Card & Verification
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editGender, setEditGender] = useState("Male");
   const [editEmail, setEditEmail] = useState("");
   const [editDob, setEditDob] = useState("");
+  const [editWeight, setEditWeight] = useState("58");
+  const [editHemoglobin, setEditHemoglobin] = useState("Normal");
+  const [editMedication, setEditMedication] = useState("No");
   const [editBlood, setEditBlood] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [editLastDonation, setEditLastDonation] = useState("");
@@ -275,11 +439,51 @@ export default function App() {
   const [editAllergies, setEditAllergies] = useState("");
   const [nidInput, setNidInput] = useState("");
 
-  // Admin Panel State
+  // In-Profile Password Change State
+  const [showChangePass, setShowChangePass] = useState(false);
+  const [oldPassInput, setOldPassInput] = useState("");
+  const [profileNewPassInput, setProfileNewPassInput] = useState("");
+
+  // Admin Panel & Surveillance State
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [pinEntry, setPinEntry] = useState("");
   const [adminEditUser, setAdminEditUser] = useState(null);
+  const [adminResetPassUser, setAdminResetPassUser] = useState(null);
+  const [adminNewPassVal, setAdminNewPassVal] = useState("");
   const [liveAllRequests, setLiveAllRequests] = useState([]);
+  const [allChatsMonitor, setAllChatsMonitor] = useState([]);
+  const [contactRequestsMonitor, setContactRequestsMonitor] = useState([]);
+
+  // Check if currentUser has Admin Approval to view/call targetPhone
+  const canViewPhone = (targetPhone) => {
+    if (!currentUser || !targetPhone) return false;
+    if (currentUser.isAdmin) return true;
+    if (targetPhone === currentUser.phone) return true;
+    return approvedContactsList.some(
+      (req) =>
+        req.status === "approved" &&
+        ((req.requesterPhone === currentUser.phone && req.targetPhone === targetPhone) ||
+          (req.targetPhone === currentUser.phone && req.requesterPhone === targetPhone))
+    );
+  };
+
+  // Check if a Contact Request is already pending
+  const isContactPending = (targetPhone) => {
+    if (!currentUser || !targetPhone) return false;
+    return approvedContactsList.some(
+      (req) =>
+        req.status === "pending" &&
+        req.requesterPhone === currentUser.phone &&
+        req.targetPhone === targetPhone
+    );
+  };
+
+  // Format Phone Display Based on Admin Approval
+  const formatPhoneDisplay = (targetPhone) => {
+    if (!targetPhone) return "Hidden";
+    if (canViewPhone(targetPhone)) return targetPhone;
+    return "01***-***" + targetPhone.slice(-2) + " (Admin Approval Required)";
+  };
 
   // Unlock Browser Audio Engine
   const unlockAudioEngine = () => {
@@ -291,6 +495,27 @@ export default function App() {
       if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
         audioCtxRef.current.resume();
       }
+    } catch (e) {}
+  };
+
+  // Gentle Chat Message Notification Chime
+  const playChatChime = () => {
+    try {
+      unlockAudioEngine();
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1174, ctx.currentTime + 0.14);
+      gain.gain.setValueAtTime(0.35, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.26);
+      if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
     } catch (e) {}
   };
 
@@ -346,7 +571,6 @@ export default function App() {
     }
   };
 
-  // Cleanup alarm on unmount
   useEffect(() => {
     return () => stopAlarmSound();
   }, []);
@@ -388,12 +612,15 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
     const presenceRef = ref(rtdb, `online_donors/${currentUser.phone}`);
+    const readiness = evaluateDonorReadiness(currentUser);
 
-    if (isStandby && getRemainingDays(currentUser.lastDonation) === 0) {
+    if (isStandby && readiness.ready && !currentUser.banned) {
       unlockAudioEngine();
       set(presenceRef, {
         name: currentUser.name,
+        gender: currentUser.gender || "Male",
         bloodGroup: currentUser.bloodGroup,
+        address: currentUser.address || "Bangladesh",
         lat: userPos[0],
         lng: userPos[1],
         updatedAt: Date.now(),
@@ -432,6 +659,25 @@ export default function App() {
     });
   }, []);
 
+  // Listen to Contact / Phone Number Access Requests
+  useEffect(() => {
+    if (!currentUser) return;
+    const callRef = ref(rtdb, "call_requests");
+    return onValue(callRef, (snap) => {
+      const data = snap.val();
+      if (!data) {
+        setApprovedContactsList([]);
+        setContactRequestsMonitor([]);
+      } else {
+        const list = Object.entries(data)
+          .map(([id, val]) => ({ id, ...val }))
+          .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        setApprovedContactsList(list);
+        setContactRequestsMonitor(list);
+      }
+    });
+  }, [currentUser]);
+
   // Scheduled Requests Listener
   useEffect(() => {
     const schedRef = ref(rtdb, "scheduled_requests");
@@ -446,6 +692,32 @@ export default function App() {
       }
     });
   }, []);
+
+  // Real-Time Incoming Chat Notification Listener
+  useEffect(() => {
+    if (!currentUser) return;
+    const notifRef = ref(rtdb, `chat_notifications/${currentUser.phone}`);
+    return onValue(notifRef, (snap) => {
+      const data = snap.val();
+      if (!data) {
+        setUnreadChatCount(0);
+        return;
+      }
+      const list = Object.entries(data)
+        .map(([id, val]) => ({ id, ...val }))
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      setUnreadChatCount(list.length);
+      const latest = list[0];
+      if (latest && latest.id !== lastSeenNotifIdRef.current) {
+        lastSeenNotifIdRef.current = latest.id;
+        if (chatRoomId !== latest.roomId) {
+          playChatChime();
+          setChatAlertBanner(latest);
+        }
+      }
+    });
+  }, [currentUser, chatRoomId]);
 
   // Fetch User Reviews
   const fetchReviews = async () => {
@@ -468,6 +740,11 @@ export default function App() {
       if (currentUser) {
         const me = list.find((u) => u.phone === currentUser.phone);
         if (me) {
+          if (me.banned) {
+            alert("Your account has been suspended by Admin.");
+            handleLogout();
+            return;
+          }
           const updatedMe = {
             ...me,
             isAdmin: me.phone === MASTER_ADMIN_PHONE || me.role === "admin",
@@ -490,7 +767,7 @@ export default function App() {
   // Valid BD Phone Check
   const isValidBDPhone = (num) => /^01[3-9]\d{8}$/.test(num.trim());
 
-  // Registration Handler
+  // Registration Handler (With Readiness Details: Weight, Hemoglobin, Medication)
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!isValidBDPhone(phoneInput)) {
@@ -520,9 +797,13 @@ export default function App() {
       const isOwner = phoneInput.trim() === MASTER_ADMIN_PHONE;
       const newUser = {
         name: nameInput.trim(),
+        gender: genderInput,
         phone: phoneInput.trim(),
         email: emailInput.trim().toLowerCase(),
         dob: dobInput || "",
+        weight: Number(weightInput) || 55,
+        hemoglobin: hemoglobinInput,
+        onMedication: medicationInput,
         password: passwordInput,
         bloodGroup: bloodInput,
         address: addressInput.trim(),
@@ -532,6 +813,7 @@ export default function App() {
         emergencyContact: "",
         allergies: "None",
         verified: isOwner,
+        banned: false,
         nidInfo: isOwner ? "Master Owner" : "",
         photoUrl: "",
         ratingSum: 0,
@@ -567,6 +849,11 @@ export default function App() {
       } else {
         const d = snap.docs[0];
         const data = d.data();
+        if (data.banned) {
+          alert("This account is banned by Admin. Contact support.");
+          setAuthLoading(false);
+          return;
+        }
         const isOwner = data.phone === MASTER_ADMIN_PHONE || data.role === "admin";
         const userObj = { id: d.id, ...data, isAdmin: isOwner };
         setCurrentUser(userObj);
@@ -578,7 +865,7 @@ export default function App() {
     setAuthLoading(false);
   };
 
-  // Free Forget Password Handler
+  // Forget Password Handler (Login Screen)
   const handleForgetPassword = async (e) => {
     e.preventDefault();
     if (newPasswordInput.length < 4) {
@@ -610,6 +897,29 @@ export default function App() {
       alert("Could not reset password. Try again.");
     }
     setAuthLoading(false);
+  };
+
+  // Change Password Inside Profile
+  const handleProfilePasswordChange = async (e) => {
+    e.preventDefault();
+    if (oldPassInput !== currentUser.password) {
+      alert("Current password is incorrect! (বর্তমান পাসওয়ার্ড ভুল হয়েছে)");
+      return;
+    }
+    if (profileNewPassInput.length < 4) {
+      alert("New password must be at least 4 characters long.");
+      return;
+    }
+    await updateDoc(doc(db, "users", currentUser.id), {
+      password: profileNewPassInput,
+    });
+    const updated = { ...currentUser, password: profileNewPassInput };
+    setCurrentUser(updated);
+    localStorage.setItem("redpulse_user", JSON.stringify(updated));
+    setOldPassInput("");
+    setProfileNewPassInput("");
+    setShowChangePass(false);
+    alert("Password changed successfully! (পাসওয়ার্ড পরিবর্তন হয়েছে)");
   };
 
   // Upload Profile Photo
@@ -649,13 +959,17 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
-  // Update Profile & SOS Card Info
+  // Update Profile & Auto-Readiness Fields
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     const updates = {
       name: editName,
+      gender: editGender,
       email: editEmail.trim().toLowerCase(),
       dob: editDob,
+      weight: Number(editWeight) || 55,
+      hemoglobin: editHemoglobin,
+      onMedication: editMedication,
       bloodGroup: editBlood,
       address: editAddress,
       lastDonation: editLastDonation,
@@ -667,7 +981,7 @@ export default function App() {
     setCurrentUser(updated);
     localStorage.setItem("redpulse_user", JSON.stringify(updated));
     setEditMode(false);
-    alert("Profile updated successfully! (প্রোফাইল আপডেট হয়েছে)");
+    alert("Profile updated! Readiness status auto-detected.");
   };
 
   // NID/Student ID Verification
@@ -683,9 +997,10 @@ export default function App() {
     alert("Congratulations! Verified Donor badge added.");
   };
 
-  // Nationwide Matching Notification + Radar Siren Listener (Only Admin-Approved Requests)
+  // Nationwide Matching Notification + Radar Siren Listener
   useEffect(() => {
     if (!currentUser) return;
+    const readiness = evaluateDonorReadiness(currentUser);
 
     const reqRef = ref(rtdb, "emergency_requests");
     const unsubscribe = onValue(reqRef, (snapshot) => {
@@ -703,7 +1018,6 @@ export default function App() {
       let foundRadarReq = null;
 
       Object.entries(data).forEach(([key, req]) => {
-        // Only broadcast requests approved by Admin (status === 'searching')
         if (
           req.status === "searching" &&
           req.bloodGroup === currentUser.bloodGroup &&
@@ -712,18 +1026,13 @@ export default function App() {
           const dist = getDistanceKm(userPos[0], userPos[1], req.hospitalLat, req.hospitalLng);
           matchingAllBD.push({ id: key, ...req, distance: dist.toFixed(1) });
 
-          // Siren Alarm (Works when Radar is ON & within radius)
           const maxRadius = req.radiusKm || 5;
-          if (
-            isStandby &&
-            getRemainingDays(currentUser.lastDonation) === 0 &&
-            dist <= maxRadius
-          ) {
+          if (isStandby && readiness.ready && dist <= maxRadius) {
             foundRadarReq = { id: key, ...req, distance: dist.toFixed(2) };
           }
         }
 
-        // Auto 90-day Lock, History Log & Digital Certificate upon Completion
+        // Auto 120-day Lock, History Log & Digital Certificate upon Completion
         if (activeMission && key === activeMission.id && req.status === "completed") {
           const todayStr = new Date().toISOString().split("T")[0];
           const newCount = (currentUser.donationCount || 0) + 1;
@@ -789,8 +1098,9 @@ export default function App() {
       return;
     }
 
-    if (getRemainingDays(currentUser.lastDonation) > 0) {
-      alert(`90-day safety cooldown is active (${getRemainingDays(currentUser.lastDonation)} days left).`);
+    const readiness = evaluateDonorReadiness(currentUser);
+    if (!readiness.ready) {
+      alert(`You are currently Not Ready: ${readiness.reason}`);
       return;
     }
 
@@ -799,6 +1109,7 @@ export default function App() {
       status: "accepted",
       donorId: currentUser.id,
       donorName: currentUser.name,
+      donorGender: currentUser.gender || "Male",
       donorPhone: currentUser.phone,
       donorVerified: currentUser.verified || false,
       donorPhoto: currentUser.photoUrl || "",
@@ -811,7 +1122,6 @@ export default function App() {
     setIncomingAlert(null);
     setShowNotifDrawer(false);
 
-    // Real-time Live GPS Tracking
     navigator.geolocation.watchPosition((pos) => {
       update(reqRef, {
         donorLat: pos.coords.latitude,
@@ -827,6 +1137,26 @@ export default function App() {
       donorStatusMsg: msg,
     });
     alert(`Status sent: "${msg}"`);
+  };
+
+  // Request Admin Approval to Unlock Phone Number & Call
+  const handleRequestNumberUnlock = async (targetPhone, targetName) => {
+    if (isContactPending(targetPhone)) {
+      alert("Your request is already pending Admin approval. Please wait.");
+      return;
+    }
+    await push(ref(rtdb, "call_requests"), {
+      requesterPhone: currentUser.phone,
+      requesterName: currentUser.name,
+      targetPhone,
+      targetName,
+      status: "pending",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: Date.now(),
+    });
+    alert(
+      `Phone unlock request sent to Admin for ${targetName}! Once Admin approves, you will see the number and Call button directly. Meanwhile, you can use Live Chat anytime.`
+    );
   };
 
   // Search Hospital on Map
@@ -850,7 +1180,7 @@ export default function App() {
     setIsSearchingMap(false);
   };
 
-  // Send Emergency or Scheduled Request (Emergency goes to Admin Approval first unless sender is Admin)
+  // Send Emergency or Scheduled Request
   const handleSendRequest = async (e) => {
     e.preventDefault();
     const fullHospital = districtName.trim()
@@ -932,11 +1262,14 @@ export default function App() {
     });
   }, [activeRequestId]);
 
-  // Direct Live Chat
+  // Open Live Chat (Open to Everyone + Real-Time Notification + Admin Surveillance)
   const openDirectChat = (otherPhone, otherName) => {
     const room = [currentUser.phone, otherPhone].sort().join("_");
     setChatRoomId(room);
+    setChatPartnerPhone(otherPhone);
     setChatPartnerName(otherName);
+    setChatAlertBanner(null);
+    remove(ref(rtdb, `chat_notifications/${currentUser.phone}`));
   };
 
   useEffect(() => {
@@ -945,19 +1278,37 @@ export default function App() {
     return onValue(msgsRef, (snap) => {
       const data = snap.val();
       if (!data) setChatMessages([]);
-      else setChatMessages(Object.values(data));
+      else setChatMessages(Object.entries(data).map(([id, val]) => ({ id, ...val })));
     });
   }, [chatRoomId]);
 
   const handleSendChatMessage = async (e) => {
     e.preventDefault();
     if (!chatInput.trim() || !chatRoomId) return;
+    const msgText = chatInput.trim();
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
     await push(ref(rtdb, `chats/${chatRoomId}`), {
       senderPhone: currentUser.phone,
       senderName: currentUser.name,
-      text: chatInput.trim(),
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      receiverPhone: chatPartnerPhone,
+      receiverName: chatPartnerName,
+      text: msgText,
+      time: timeStr,
+      timestamp: Date.now(),
     });
+
+    if (chatPartnerPhone) {
+      await push(ref(rtdb, `chat_notifications/${chatPartnerPhone}`), {
+        roomId: chatRoomId,
+        senderPhone: currentUser.phone,
+        senderName: currentUser.name,
+        text: msgText,
+        time: timeStr,
+        timestamp: Date.now(),
+      });
+    }
+
     setChatInput("");
   };
 
@@ -1015,15 +1366,39 @@ export default function App() {
     fetchAllUsers();
   };
 
-  // Admin Live Requests Listener (Always active for Admins so they see pending badge)
+  // Admin Live Requests & Chat Surveillance Listener
   useEffect(() => {
     if (!currentUser?.isAdmin) return;
+
     const reqRef = ref(rtdb, "emergency_requests");
-    return onValue(reqRef, (snap) => {
+    const unsubReq = onValue(reqRef, (snap) => {
       const data = snap.val();
       if (!data) setLiveAllRequests([]);
       else setLiveAllRequests(Object.entries(data).map(([id, val]) => ({ id, ...val })));
     });
+
+    const chatsRef = ref(rtdb, "chats");
+    const unsubChats = onValue(chatsRef, (snap) => {
+      const data = snap.val();
+      if (!data) {
+        setAllChatsMonitor([]);
+        return;
+      }
+      const flatMsgs = [];
+      Object.entries(data).forEach(([roomId, msgsObj]) => {
+        if (msgsObj && typeof msgsObj === "object") {
+          Object.entries(msgsObj).forEach(([msgId, m]) => {
+            flatMsgs.push({ roomId, msgId, ...m });
+          });
+        }
+      });
+      setAllChatsMonitor(flatMsgs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
+    });
+
+    return () => {
+      unsubReq();
+      unsubChats();
+    };
   }, [currentUser]);
 
   // Admin Unlock
@@ -1047,19 +1422,55 @@ export default function App() {
     setShowMoreMenu(false);
   };
 
-  // Smooth Midnight Dark Mode & 3D Button Styling Helpers
-  const pageBg = darkMode
-    ? "bg-[#0B1120] text-slate-100"
-    : "bg-slate-50 text-slate-900";
-  const cardBg = darkMode
-    ? "bg-[#111827]/95 border-slate-800/90 text-slate-100 shadow-xl shadow-black/30"
-    : "bg-white border-slate-200/80 text-slate-800 shadow-md shadow-slate-200/50";
-  const inputBg = darkMode
-    ? "bg-[#1E293B] border-slate-700 text-white placeholder-slate-400 focus:border-red-500"
-    : "bg-slate-50 border-slate-200 text-slate-900 focus:border-red-500";
-  const subText = darkMode ? "text-slate-400" : "text-slate-500";
+  // Interactive Eligibility Quiz Handler
+  const handleRunEligibilityQuiz = (e) => {
+    e.preventDefault();
+    const ageNum = Number(quizAge);
+    const weightNum = Number(quizWeight);
+    const daysNum = Number(quizDays);
 
-  // 3D Tactile Button Styles
+    if (ageNum < 18 || ageNum > 60) {
+      setQuizResult({
+        ok: false,
+        msg: "রক্তদানের জন্য বয়স ১৮ থেকে ৬০ বছরের মধ্যে হতে হবে।",
+      });
+    } else if (weightNum < 50) {
+      setQuizResult({
+        ok: false,
+        msg: "নিরাপদ রক্তদানের জন্য ওজন কমপক্ষে ৫০ কেজি হতে হবে।",
+      });
+    } else if (daysNum < COOLDOWN_DAYS) {
+      setQuizResult({
+        ok: false,
+        msg: `শেষ রক্তদানের পর কমপক্ষে ${COOLDOWN_DAYS} দিন (৪ মাস) বিরতি প্রয়োজন। আপনার আরও ${
+          COOLDOWN_DAYS - daysNum
+        } দিন অপেক্ষা করতে হবে।`,
+      });
+    } else if (quizHemo === "Low") {
+      setQuizResult({
+        ok: false,
+        msg: "হিমোগ্লোবিনের মাত্রা কম থাকলে রক্তদান করা নিরাপদ নয়। পুষ্টিকর খাবার খেয়ে হিমোগ্লোবিন স্বাভাবিক করুন।",
+      });
+    } else if (quizMed === "Yes") {
+      setQuizResult({
+        ok: false,
+        msg: "বর্তমানে অ্যান্টিবায়োটিক বা নিয়মিত কোনো ওষুধ সেবন করলে ডাক্তারের পরামর্শ ছাড়া রক্তদান করা উচিত নয়।",
+      });
+    } else {
+      setQuizResult({
+        ok: true,
+        msg: "অভিনন্দন! আপনি আজ রক্তদানের জন্য ১০০% সুস্থ ও যোগ্য। আপনার এক ব্যাগ রক্ত একটি প্রাণ বাঁচাতে পারে!",
+      });
+    }
+  };
+
+  // Theme & 3D Button Styling Helpers
+  const pageBg = currentTheme.pageBg;
+  const cardBg = currentTheme.cardBg;
+  const inputBg = currentTheme.inputBg;
+  const subText = currentTheme.subText;
+  const btnPrimary = currentTheme.primaryBtn;
+
   const btn3DRed =
     "bg-gradient-to-b from-red-500 to-red-600 hover:from-red-500 hover:to-red-700 text-white font-extrabold border-b-4 border-red-800 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-red-600/25 transition-all";
   const btn3DGreen =
@@ -1070,23 +1481,23 @@ export default function App() {
     "bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white font-bold border-b-4 border-blue-800 active:border-b-0 active:translate-y-0.5 shadow-md transition-all";
 
   /* ============================================================================
-     1. LOGIN, REGISTRATION & FORGET PASSWORD SCREEN
+     1. LOGIN, REGISTRATION (WITH READINESS FIELDS) & FORGET PASSWORD SCREEN
      ============================================================================ */
   if (!currentUser) {
     return (
       <div
-        className={`min-h-screen flex items-center justify-center p-4 relative overflow-hidden transition-colors ${
-          darkMode
-            ? "bg-[#0B1120] text-white"
-            : "bg-gradient-to-br from-rose-50 via-white to-red-100 text-slate-900"
-        }`}
+        className={`min-h-screen flex items-center justify-center p-4 relative overflow-hidden transition-colors ${pageBg}`}
       >
         <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="fixed top-4 right-4 z-20 p-2.5 rounded-full bg-white/15 backdrop-blur border border-red-400/30 shadow-lg"
-          title="Dark/Light Mode"
+          onClick={() => {
+            const keys = Object.keys(APP_THEMES);
+            const nextIdx = (keys.indexOf(themeKey) + 1) % keys.length;
+            setThemeKey(keys[nextIdx]);
+          }}
+          className="fixed top-4 right-4 z-20 px-3 py-2 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur border border-red-400/30 shadow-lg text-xs font-extrabold flex items-center gap-1.5 text-red-600"
+          title="Switch Theme"
         >
-          {darkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-red-700" />}
+          <Palette className="w-4 h-4" /> {currentTheme.label}
         </button>
 
         <Droplet className="w-64 h-64 text-red-500/10 fixed -top-10 -left-10 rotate-12 pointer-events-none" />
@@ -1094,11 +1505,11 @@ export default function App() {
 
         <div className={`w-full max-w-md rounded-3xl border p-6 z-10 ${cardBg}`}>
           <div className="flex flex-col items-center text-center mb-5">
-            <div className="bg-gradient-to-b from-red-500 to-red-700 p-3 rounded-2xl shadow-lg border-b-4 border-red-900 mb-2">
+            <div className={`bg-gradient-to-b ${currentTheme.headerBg} p-3 rounded-2xl shadow-lg border-b-4 border-red-900 mb-2`}>
               <RedPulseLogo size={42} />
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight">RedPulse</h1>
-            <p className="text-xs text-red-500 font-semibold">
+            <p className={`text-xs font-semibold ${currentTheme.accentText}`}>
               Emergency Blood Radar • জরুরি রক্তের নেটওয়ার্ক
             </p>
           </div>
@@ -1168,7 +1579,7 @@ export default function App() {
               <button
                 disabled={authLoading}
                 type="submit"
-                className={`w-full py-3.5 rounded-2xl text-sm ${btn3DRed}`}
+                className={`w-full py-3.5 rounded-2xl text-sm ${btnPrimary}`}
               >
                 {authLoading ? "Checking..." : "Login Now • প্রবেশ করুন"}
               </button>
@@ -1221,7 +1632,7 @@ export default function App() {
               <button
                 disabled={authLoading}
                 type="submit"
-                className={`w-full py-3 rounded-2xl text-sm ${btn3DRed}`}
+                className={`w-full py-3 rounded-2xl text-sm ${btnPrimary}`}
               >
                 {authLoading ? "Updating..." : "Set New Password • সেভ করুন"}
               </button>
@@ -1236,75 +1647,127 @@ export default function App() {
           )}
 
           {authMode === "register" && (
-            <form onSubmit={handleRegister} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold mb-0.5">Full Name (আপনার নাম)</label>
-                <input
-                  required
-                  type="text"
-                  placeholder="EX: Mohammad Rejwan Islam"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  className={`w-full border rounded-xl p-2.5 text-sm ${inputBg}`}
-                />
+            <form onSubmit={handleRegister} className="space-y-2.5 max-h-[72vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="block text-[11px] font-bold mb-0.5">Full Name (আপনার নাম)</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="EX: Mohammad Rejwan Islam"
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold mb-0.5">Gender (লিঙ্গ)</label>
+                  <select
+                    value={genderInput}
+                    onChange={(e) => setGenderInput(e.target.value)}
+                    className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
+                  >
+                    <option value="Male">Male (পুরুষ)</option>
+                    <option value="Female">Female (মহিলা)</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold mb-0.5">Phone (ফোন নম্বর)</label>
+                  <label className="block text-[11px] font-bold mb-0.5">Phone (ফোন নম্বর)</label>
                   <input
                     required
                     type="tel"
                     placeholder="017XXXXXXXX"
                     value={phoneInput}
                     onChange={(e) => setPhoneInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2.5 text-sm ${inputBg}`}
+                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold mb-0.5">Password (পাসওয়ার্ড)</label>
+                  <label className="block text-[11px] font-bold mb-0.5">Password (পাসওয়ার্ড)</label>
                   <input
                     required
                     type="password"
                     placeholder="Min 4 characters"
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2.5 text-sm ${inputBg}`}
+                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold mb-0.5">Email (ইমেইল)</label>
+                  <label className="block text-[11px] font-bold mb-0.5">Email (ইমেইল)</label>
                   <input
                     required
                     type="email"
                     placeholder="name@gmail.com"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold mb-0.5">Date of Birth (জন্মতারিখ)</label>
+                  <label className="block text-[11px] font-bold mb-0.5">Date of Birth (জন্মতারিখ)</label>
                   <input
                     required
                     type="date"
                     value={dobInput}
                     onChange={(e) => setDobInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                   />
+                </div>
+              </div>
+
+              {/* AUTO-READINESS HEALTH INPUTS */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[11px] font-bold mb-0.5">Weight (ওজন kg)</label>
+                  <input
+                    required
+                    type="number"
+                    min="30"
+                    max="180"
+                    placeholder="58"
+                    value={weightInput}
+                    onChange={(e) => setWeightInput(e.target.value)}
+                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold mb-0.5">Hemoglobin</label>
+                  <select
+                    value={hemoglobinInput}
+                    onChange={(e) => setHemoglobinInput(e.target.value)}
+                    className={`w-full border rounded-xl p-2 text-[11px] font-bold ${inputBg}`}
+                  >
+                    <option value="Normal">Normal (স্বাভাবিক)</option>
+                    <option value="Low">Low (কম)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold mb-0.5">Medicine?</label>
+                  <select
+                    value={medicationInput}
+                    onChange={(e) => setMedicationInput(e.target.value)}
+                    className={`w-full border rounded-xl p-2 text-[11px] font-bold ${inputBg}`}
+                  >
+                    <option value="No">No (সুস্থ আছি)</option>
+                    <option value="Yes">Yes (ওষুধ চলছে)</option>
+                  </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold mb-0.5">Blood Group (রক্তের গ্রুপ)</label>
+                  <label className="block text-[11px] font-bold mb-0.5">Blood Group (রক্তের গ্রুপ)</label>
                   <select
                     value={bloodInput}
                     onChange={(e) => setBloodInput(e.target.value)}
-                    className="w-full border border-red-300 rounded-xl p-2.5 text-sm font-extrabold text-red-600 bg-red-50"
+                    className="w-full border border-red-300 rounded-xl p-2 text-xs font-extrabold text-red-600 bg-red-50"
                   >
                     {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
                       <option key={bg} value={bg}>
@@ -1314,32 +1777,32 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold mb-0.5">Last Donation (শেষ রক্তদান)</label>
+                  <label className="block text-[11px] font-bold mb-0.5">Last Donation (শেষ রক্তদান)</label>
                   <input
                     type="date"
                     value={lastDonationInput}
                     onChange={(e) => setLastDonationInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold mb-0.5">District & Area (জেলা ও এলাকা)</label>
+                <label className="block text-[11px] font-bold mb-0.5">District & Area (জেলা ও এলাকা)</label>
                 <input
                   required
                   type="text"
                   placeholder="EX: Savar, Dhaka"
                   value={addressInput}
                   onChange={(e) => setAddressInput(e.target.value)}
-                  className={`w-full border rounded-xl p-2.5 text-sm ${inputBg}`}
+                  className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                 />
               </div>
 
               <button
                 disabled={authLoading}
                 type="submit"
-                className={`w-full py-3.5 rounded-2xl text-sm mt-1 ${btn3DRed}`}
+                className={`w-full py-3 rounded-2xl text-xs mt-1 ${btnPrimary}`}
               >
                 {authLoading ? "Creating Account..." : "Complete Registration • সম্পন্ন করুন"}
               </button>
@@ -1353,6 +1816,7 @@ export default function App() {
   /* ============================================================================
      2. MAIN APP DASHBOARD
      ============================================================================ */
+  const myReadiness = evaluateDonorReadiness(currentUser);
   const userAge = calculateAge(currentUser.dob);
   const liveDistanceKm =
     liveRequestData?.donorLat && liveRequestData?.hospitalLat
@@ -1366,10 +1830,12 @@ export default function App() {
   const estimatedMinutes = liveDistanceKm !== null ? Math.max(2, Math.round(liveDistanceKm * 4)) : null;
 
   const filteredDirectory = allUsers.filter((u) => {
+    if (u.banned && !currentUser.isAdmin) return false;
     const matchBlood = filterBlood === "ALL" || u.bloodGroup === filterBlood;
+    const matchGender = filterGender === "ALL" || (u.gender || "Male") === filterGender;
     const matchArea =
       !filterArea.trim() || u.address?.toLowerCase().includes(filterArea.toLowerCase());
-    return matchBlood && matchArea;
+    return matchBlood && matchGender && matchArea;
   });
 
   const filteredBanks = EMERGENCY_DIRECTORY.filter(
@@ -1379,18 +1845,38 @@ export default function App() {
   );
 
   const topHeroes = [...allUsers]
-    .filter((u) => (u.donationCount || 0) > 0)
+    .filter((u) => (u.donationCount || 0) > 0 && !u.banned)
     .sort((a, b) => (b.donationCount || 0) - (a.donationCount || 0))
     .slice(0, 10);
 
   const approvedReviews = allReviews.filter((r) => r.approved === true);
   const pendingReviews = allReviews.filter((r) => !r.approved);
   const pendingAdminRequests = liveAllRequests.filter((r) => r.status === "pending_admin");
+  const pendingContactRequests = contactRequestsMonitor.filter((c) => c.status === "pending");
 
   return (
     <div className={`min-h-screen font-sans pb-24 relative transition-colors duration-300 ${pageBg}`}>
+      {/* REAL-TIME INCOMING CHAT BANNER */}
+      {chatAlertBanner && (
+        <div
+          onClick={() => openDirectChat(chatAlertBanner.senderPhone, chatAlertBanner.senderName)}
+          className="fixed top-16 inset-x-3 max-w-md mx-auto z-50 bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-3.5 rounded-2xl shadow-2xl border border-emerald-300/40 flex items-center justify-between cursor-pointer animate-bounce"
+        >
+          <div className="flex items-center gap-2.5">
+            <MessageSquare className="w-5 h-5 shrink-0" />
+            <div className="text-xs">
+              <div className="font-extrabold">New Message from {chatAlertBanner.senderName}</div>
+              <div className="opacity-90 line-clamp-1">{chatAlertBanner.text}</div>
+            </div>
+          </div>
+          <span className="bg-white text-emerald-800 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
+            Reply
+          </span>
+        </div>
+      )}
+
       {/* CLEAN TOP HEADER */}
-      <header className="bg-gradient-to-r from-red-700 via-red-600 to-rose-600 text-white px-4 py-3 shadow-lg flex justify-between items-center sticky top-0 z-40">
+      <header className={`bg-gradient-to-r ${currentTheme.headerBg} text-white px-4 py-3 shadow-lg flex justify-between items-center sticky top-0 z-40`}>
         <div
           onClick={() => setActiveTab("radar")}
           className="flex items-center gap-2.5 cursor-pointer"
@@ -1412,21 +1898,47 @@ export default function App() {
             title="Notifications"
           >
             <Bell className="w-4 h-4" />
-            {nationwideMatchingReqs.length > 0 && (
+            {(nationwideMatchingReqs.length > 0 || unreadChatCount > 0) && (
               <span className="absolute -top-1 -right-1 bg-amber-400 text-slate-950 text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center animate-bounce">
-                {nationwideMatchingReqs.length}
+                {nationwideMatchingReqs.length + unreadChatCount}
               </span>
             )}
           </button>
 
-          {/* Dark / Light Mode Toggle */}
+          {/* 5-Theme Switcher Button */}
           <button
-            onClick={() => setDarkMode(!darkMode)}
+            onClick={() => setShowThemePicker(!showThemePicker)}
             className="p-2 bg-white/15 hover:bg-white/25 rounded-full transition"
-            title="Dark / Light Mode"
+            title="Choose Theme"
           >
-            {darkMode ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4" />}
+            <Palette className="w-4 h-4" />
           </button>
+
+          {/* Theme Dropdown */}
+          {showThemePicker && (
+            <div
+              className={`absolute right-10 top-12 w-48 rounded-2xl shadow-2xl border p-2 z-50 text-xs font-bold space-y-1 ${cardBg}`}
+            >
+              <div className="px-2 py-1 text-[10px] uppercase tracking-wider opacity-60">
+                Select App Theme
+              </div>
+              {Object.entries(APP_THEMES).map(([key, th]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setThemeKey(key);
+                    setShowThemePicker(false);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between ${
+                    themeKey === key ? "bg-red-600 text-white" : "hover:bg-slate-500/10"
+                  }`}
+                >
+                  <span>{th.label}</span>
+                  {themeKey === key && <CheckCircle2 className="w-3.5 h-3.5" />}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* 3-Dot More Menu Button */}
           <button
@@ -1435,9 +1947,9 @@ export default function App() {
             title="More Options"
           >
             <MoreVertical className="w-4 h-4" />
-            {currentUser.isAdmin && pendingAdminRequests.length > 0 && (
+            {currentUser.isAdmin && pendingAdminRequests.length + pendingContactRequests.length > 0 && (
               <span className="absolute -top-1 -right-1 bg-purple-400 text-slate-950 text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">
-                {pendingAdminRequests.length}
+                {pendingAdminRequests.length + pendingContactRequests.length}
               </span>
             )}
           </button>
@@ -1445,18 +1957,36 @@ export default function App() {
           {/* 3-Dot Dropdown Drawer */}
           {showMoreMenu && (
             <div
-              className={`absolute right-0 top-12 w-64 rounded-2xl shadow-2xl border py-2 z-50 text-xs font-bold ${
-                darkMode
-                  ? "bg-[#111827] border-slate-700 text-slate-100"
-                  : "bg-white border-slate-200 text-slate-800"
-              }`}
+              className={`absolute right-0 top-12 w-72 rounded-2xl shadow-2xl border py-2 z-50 text-xs font-bold ${cardBg}`}
             >
+              {/* 1. Advantages of Blood Donation */}
+              <button
+                onClick={() => {
+                  setActiveTab("benefits");
+                  setShowMoreMenu(false);
+                }}
+                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5 text-rose-500"
+              >
+                <Heart className="w-4 h-4 fill-current" /> রক্তদানের উপকারিতা (Donation Advantages)
+              </button>
+
+              {/* 2. Emergency First-Aid & Interactive Eligibility Quiz */}
+              <button
+                onClick={() => {
+                  setActiveTab("eligibility");
+                  setShowMoreMenu(false);
+                }}
+                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5 text-teal-500"
+              >
+                <Stethoscope className="w-4 h-4" /> ফার্স্ট-এইড ও যোগ্যতা কুইজ (Quiz & Guide)
+              </button>
+
               <button
                 onClick={() => {
                   setActiveTab("banks");
                   setShowMoreMenu(false);
                 }}
-                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5"
+                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5 border-t border-slate-500/15"
               >
                 <Building2 className="w-4 h-4 text-red-500" /> Blood Banks & Ambulance (ব্লাড ব্যাংক)
               </button>
@@ -1497,11 +2027,11 @@ export default function App() {
                   className="w-full px-4 py-2.5 text-left hover:bg-purple-500/10 text-purple-400 flex items-center justify-between border-t border-slate-500/20"
                 >
                   <span className="flex items-center gap-2.5">
-                    <Lock className="w-4 h-4" /> Admin Panel (অ্যাডমিন)
+                    <Lock className="w-4 h-4" /> Admin Surveillance & Panel
                   </span>
-                  {pendingAdminRequests.length > 0 && (
+                  {pendingAdminRequests.length + pendingContactRequests.length > 0 && (
                     <span className="bg-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full">
-                      {pendingAdminRequests.length} New
+                      {pendingAdminRequests.length + pendingContactRequests.length} New
                     </span>
                   )}
                 </button>
@@ -1566,12 +2096,15 @@ export default function App() {
                       >
                         I am Coming • আমি আসছি
                       </button>
-                      <a
-                        href={`tel:${req.seekerPhone}`}
-                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center ${btn3DBlue}`}
+                      <button
+                        onClick={() => {
+                          setShowNotifDrawer(false);
+                          openDirectChat(req.seekerPhone, req.seekerName);
+                        }}
+                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 ${btn3DBlue}`}
                       >
-                        Call
-                      </a>
+                        <MessageSquare className="w-3.5 h-3.5" /> Chat
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1605,7 +2138,7 @@ export default function App() {
           </p>
           <p className="text-base font-bold">Hospital: {incomingAlert.hospitalName}</p>
           <p className="text-xs opacity-90 mb-6">
-            Seeker: {incomingAlert.seekerName} ({incomingAlert.seekerPhone})
+            Seeker: {incomingAlert.seekerName} ({formatPhoneDisplay(incomingAlert.seekerPhone)})
           </p>
 
           <div className="flex gap-3 w-full max-w-sm">
@@ -1668,18 +2201,51 @@ export default function App() {
         </div>
       )}
 
-      {/* IN-APP DIRECT CHAT MODAL */}
+      {/* OPEN LIVE CHAT MODAL (ADMIN MONITORED + UNLOCKED PHONE CALL IF APPROVED) */}
       {chatRoomId && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
-          <div className={`w-full max-w-md rounded-3xl border overflow-hidden flex flex-col h-[70vh] ${cardBg}`}>
+          <div className={`w-full max-w-md rounded-3xl border overflow-hidden flex flex-col h-[74vh] ${cardBg}`}>
             <div className="bg-red-600 text-white p-3.5 flex justify-between items-center">
               <div>
-                <h3 className="font-bold text-sm">{chatPartnerName}</h3>
-                <span className="text-[10px] text-rose-100">Direct Live Chat • সরাসরি চ্যাট</span>
+                <h3 className="font-bold text-sm flex items-center gap-1.5">
+                  {chatPartnerName}
+                  {canViewPhone(chatPartnerPhone) ? (
+                    <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full">
+                      {chatPartnerPhone}
+                    </span>
+                  ) : (
+                    <span className="text-[9px] bg-black/30 px-2 py-0.5 rounded-full">
+                      Number Protected
+                    </span>
+                  )}
+                </h3>
+                <span className="text-[10px] text-rose-100">
+                  Live Chat Open • Admin Monitored for Safety
+                </span>
               </div>
-              <button onClick={() => setChatRoomId(null)} className="p-1.5 bg-red-700 rounded-xl">
-                <X className="w-4 h-4" />
-              </button>
+
+              <div className="flex items-center gap-1.5">
+                {canViewPhone(chatPartnerPhone) ? (
+                  <a
+                    href={`tel:${chatPartnerPhone}`}
+                    className="p-2 bg-emerald-500 text-white rounded-xl font-bold text-xs flex items-center gap-1"
+                  >
+                    <Phone className="w-3.5 h-3.5" /> Call
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => handleRequestNumberUnlock(chatPartnerPhone, chatPartnerName)}
+                    className="px-2.5 py-1.5 bg-amber-400 text-slate-950 rounded-xl font-extrabold text-[10px] flex items-center gap-1"
+                  >
+                    <PhoneCall className="w-3 h-3" />
+                    {isContactPending(chatPartnerPhone) ? "Pending..." : "Request Number"}
+                  </button>
+                )}
+
+                <button onClick={() => setChatRoomId(null)} className="p-1.5 bg-red-700 rounded-xl">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 p-3 overflow-y-auto space-y-2">
@@ -1723,7 +2289,7 @@ export default function App() {
                 onChange={(e) => setChatInput(e.target.value)}
                 className={`flex-1 border rounded-xl px-3 py-2 text-xs outline-none ${inputBg}`}
               />
-              <button type="submit" className={`px-4 py-2 rounded-xl text-xs flex items-center gap-1 ${btn3DRed}`}>
+              <button type="submit" className={`px-4 py-2 rounded-xl text-xs flex items-center gap-1 ${btnPrimary}`}>
                 <Send className="w-3.5 h-3.5" /> Send
               </button>
             </form>
@@ -1750,7 +2316,7 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <button onClick={handleSubmitRating} className={`w-full py-3 rounded-2xl text-xs ${btn3DRed}`}>
+            <button onClick={handleSubmitRating} className={`w-full py-3 rounded-2xl text-xs ${btnPrimary}`}>
               Submit Rating • জমা দিন
             </button>
           </div>
@@ -1762,7 +2328,7 @@ export default function App() {
         {/* ================= TAB 1: CLEAN HIDDEN-MAP RADAR HOME ================= */}
         {activeTab === "radar" && (
           <>
-            {/* 1. SLIM 1-LINE LIVE STATUS BAR */}
+            {/* 1. SLIM 1-LINE LIVE STATUS BAR WITH AUTO-READINESS */}
             <div className={`rounded-2xl px-4 py-3 border flex items-center justify-between ${cardBg}`}>
               <div className="flex items-center gap-2.5">
                 <span className="relative flex h-3 w-3">
@@ -1786,22 +2352,20 @@ export default function App() {
                     </span>
                   </div>
                   <p className={`text-[10px] ${subText}`}>
-                    {getRemainingDays(currentUser.lastDonation) > 0
-                      ? `Cooldown: ${getRemainingDays(currentUser.lastDonation)} days left`
-                      : "Turn ON for emergency siren alerts"}
+                    {!myReadiness.ready
+                      ? `Not Ready: ${myReadiness.reason}`
+                      : "Ready to Donate • Turn ON for siren alerts"}
                   </p>
                 </div>
               </div>
 
               <button
                 onClick={() => {
-                  const rem = getRemainingDays(currentUser.lastDonation);
-                  if (!isStandby && rem > 0) {
-                    alert(`For safe blood donation, please wait ${rem} more days.`);
+                  if (!isStandby && !myReadiness.ready) {
+                    alert(
+                      `You are currently Not Ready to turn on Radar:\n${myReadiness.reason}\n(Update your profile if your health status has changed)`
+                    );
                     return;
-                  }
-                  if (!isStandby && userAge !== null && userAge < 18) {
-                    alert("Note: Safe blood donation age in Bangladesh is 18+ years.");
                   }
                   unlockAudioEngine();
                   setIsStandby(!isStandby);
@@ -1828,24 +2392,40 @@ export default function App() {
               </div>
             )}
 
-            {/* ACTIVE DONOR MISSION CARD */}
+            {/* ACTIVE DONOR MISSION CARD (PHONE UNLOCKED ONLY AFTER ADMIN APPROVAL) */}
             {activeMission && (
               <div className="bg-amber-500/15 border-2 border-amber-500 p-4 rounded-3xl space-y-3">
                 <div className="font-extrabold text-amber-500 text-sm">
                   Active Mission: {activeMission.hospitalName} ({activeMission.bloodGroup})
                 </div>
+                <div className="text-[11px] font-semibold flex items-center gap-1 text-slate-400">
+                  <EyeOff className="w-3.5 h-3.5 text-red-500" />
+                  Seeker Phone: {formatPhoneDisplay(activeMission.seekerPhone)}
+                </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <a
-                    href={`tel:${activeMission.seekerPhone}`}
-                    className={`py-2.5 rounded-xl text-center text-xs ${btn3DGreen}`}
-                  >
-                    Call (কল)
-                  </a>
+                  {canViewPhone(activeMission.seekerPhone) ? (
+                    <a
+                      href={`tel:${activeMission.seekerPhone}`}
+                      className={`py-2.5 rounded-xl text-center text-xs ${btn3DGreen}`}
+                    >
+                      Call ({activeMission.seekerPhone})
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() =>
+                        handleRequestNumberUnlock(activeMission.seekerPhone, activeMission.seekerName)
+                      }
+                      className={`py-2.5 rounded-xl text-center text-[10px] flex items-center justify-center gap-1 ${btn3DGreen}`}
+                    >
+                      <PhoneCall className="w-3 h-3" />
+                      {isContactPending(activeMission.seekerPhone) ? "Pending..." : "Request Number"}
+                    </button>
+                  )}
                   <button
                     onClick={() => openDirectChat(activeMission.seekerPhone, activeMission.seekerName)}
                     className={`py-2.5 rounded-xl text-center text-xs ${btn3DRed}`}
                   >
-                    Chat (চ্যাট)
+                    Live Chat
                   </button>
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${activeMission.hospitalLat},${activeMission.hospitalLng}`}
@@ -1878,7 +2458,6 @@ export default function App() {
 
             {/* 2. CLEAN BOTTOM-SHEET STYLE REQUEST CARD */}
             <div className={`rounded-3xl border p-4 space-y-4 ${cardBg}`}>
-              {/* Clean Underline Tabs: Emergency | Schedule */}
               {!activeRequestId && (
                 <div className="flex border-b border-slate-500/20">
                   <button
@@ -1909,7 +2488,6 @@ export default function App() {
               {!activeRequestId ? (
                 <>
                   <form onSubmit={handleSendRequest} className="space-y-3.5">
-                    {/* Side-by-Side 2 Core Inputs */}
                     <div className="grid grid-cols-3 gap-2.5">
                       <div>
                         <label className="block text-[11px] font-bold mb-1">
@@ -1968,7 +2546,6 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Action Row: + Add more details & Set on Map toggle */}
                     <div className="flex items-center justify-between text-xs pt-0.5">
                       <button
                         type="button"
@@ -1995,7 +2572,6 @@ export default function App() {
                       )}
                     </div>
 
-                    {/* Collapsible Extra Details */}
                     {showExtraFormFields && (
                       <div className="space-y-3 pt-2 border-t border-slate-500/20">
                         <div>
@@ -2054,7 +2630,6 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* HIDDEN BY DEFAULT: Opens only when user taps "Set on Map" */}
                     {requestType === "emergency" && showLocationMap && (
                       <div className="space-y-2 pt-2 border-t border-slate-500/20">
                         <div className="flex gap-2">
@@ -2096,7 +2671,7 @@ export default function App() {
                       </div>
                     )}
 
-                    <button type="submit" className={`w-full py-3.5 rounded-2xl text-xs ${btn3DRed}`}>
+                    <button type="submit" className={`w-full py-3.5 rounded-2xl text-xs ${btnPrimary}`}>
                       {requestType === "emergency"
                         ? "Request Blood Now • রক্তের অনুরোধ পাঠান"
                         : "Post Schedule • শিডিউল পোস্ট করুন"}
@@ -2125,7 +2700,7 @@ export default function App() {
                             </span>
                           </div>
                           <p className="font-bold">Hospital: {item.hospitalName}</p>
-                          <div className="pt-1 flex items-center justify-between">
+                          <div className="pt-1 flex items-center justify-between gap-2">
                             {item.bookedBy ? (
                               <span className="text-emerald-500 font-bold">
                                 Booked by: {item.bookedBy}
@@ -2145,6 +2720,14 @@ export default function App() {
                               </button>
                             ) : (
                               <span className={subText}>Waiting for donor...</span>
+                            )}
+                            {item.seekerPhone !== currentUser.phone && (
+                              <button
+                                onClick={() => openDirectChat(item.seekerPhone, item.seekerName)}
+                                className={`px-2.5 py-1.5 rounded-xl text-xs ${btn3DBlue}`}
+                              >
+                                Live Chat
+                              </button>
                             )}
                             {item.seekerPhone === currentUser.phone && (
                               <button
@@ -2189,11 +2772,11 @@ export default function App() {
                         <b>{onlineDonorsList.length}</b>
                       </p>
 
-                      {/* One-Tap Social Appeal Share */}
+                      {/* One-Tap Social Appeal Share (Phone Number Protected) */}
                       <div className="flex flex-wrap justify-center gap-2 pt-1">
                         <button
                           onClick={() => {
-                            const appealText = `🚨 URGENT BLOOD NEEDED (${liveRequestData.bloodGroup}) 🚨\nHospital: ${liveRequestData.hospitalName}\nBags: ${liveRequestData.bagsNeeded}\nReason: ${liveRequestData.urgencyReason}\nContact: ${liveRequestData.seekerPhone}\n\nRespond live via RedPulse: https://rokto-bondhu-eight.vercel.app`;
+                            const appealText = `🚨 URGENT BLOOD NEEDED (${liveRequestData.bloodGroup}) 🚨\nHospital: ${liveRequestData.hospitalName}\nBags: ${liveRequestData.bagsNeeded}\nReason: ${liveRequestData.urgencyReason}\n\nRespond safely via RedPulse App: https://rokto-bondhu-eight.vercel.app`;
                             navigator.clipboard?.writeText(appealText);
                             alert("Emergency appeal copied! Paste on Facebook or WhatsApp.");
                           }}
@@ -2239,6 +2822,9 @@ export default function App() {
                             <span className="inline-block bg-emerald-500/20 text-emerald-400 text-[11px] px-2 py-0.5 rounded-md font-semibold mt-0.5">
                               {liveRequestData?.donorStatusMsg || "Coming..."}
                             </span>
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              Phone: {formatPhoneDisplay(liveRequestData?.donorPhone)}
+                            </div>
                           </div>
                         </div>
 
@@ -2252,38 +2838,46 @@ export default function App() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-4 gap-1.5">
-                        <a
-                          href={`tel:${liveRequestData?.donorPhone}`}
-                          className={`py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 ${btn3DGreen}`}
-                        >
-                          <Phone className="w-3 h-3" /> Call
-                        </a>
+                      <div className="grid grid-cols-3 gap-2">
+                        {canViewPhone(liveRequestData?.donorPhone) ? (
+                          <a
+                            href={`tel:${liveRequestData?.donorPhone}`}
+                            className={`py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 ${btn3DGreen}`}
+                          >
+                            <Phone className="w-3 h-3" /> Call
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              handleRequestNumberUnlock(
+                                liveRequestData?.donorPhone,
+                                liveRequestData?.donorName
+                              )
+                            }
+                            className={`py-2 rounded-xl text-[10px] flex items-center justify-center gap-1 ${btn3DGreen}`}
+                          >
+                            <PhoneCall className="w-3 h-3" />
+                            {isContactPending(liveRequestData?.donorPhone)
+                              ? "Pending..."
+                              : "Request Number"}
+                          </button>
+                        )}
                         <button
                           onClick={() =>
                             openDirectChat(liveRequestData?.donorPhone, liveRequestData?.donorName)
                           }
                           className={`py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 ${btn3DRed}`}
                         >
-                          <MessageSquare className="w-3 h-3" /> Chat
+                          <MessageSquare className="w-3 h-3" /> Live Chat
                         </button>
                         <button
                           onClick={() => setShowLiveTrackingMap(!showLiveTrackingMap)}
                           className={`py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 ${btn3DBlue}`}
                         >
-                          <MapPin className="w-3 h-3" /> {showLiveTrackingMap ? "Hide" : "Map"}
+                          <MapPin className="w-3 h-3" /> {showLiveTrackingMap ? "Hide Map" : "Live Map"}
                         </button>
-                        <a
-                          href={`https://wa.me/88${liveRequestData?.donorPhone?.replace(/^0/, "")}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 ${btn3DDark}`}
-                        >
-                          <MessageCircle className="w-3 h-3" /> WA
-                        </a>
                       </div>
 
-                      {/* HIDDEN BY DEFAULT: Live Tracking Map opens only when user clicks "Map" */}
                       {showLiveTrackingMap && (
                         <div className="h-48 rounded-2xl overflow-hidden border border-slate-500/30">
                           <MapContainer center={hospitalPos} zoom={14} className="h-full w-full">
@@ -2320,7 +2914,7 @@ export default function App() {
                         }}
                         className={`flex-1 py-3 rounded-2xl text-xs ${btn3DBlue}`}
                       >
-                        Blood Received • সম্পন্ন
+                        Blood Managed / Received • সম্পন্ন
                       </button>
                     )}
                     <button
@@ -2332,7 +2926,7 @@ export default function App() {
                       }}
                       className={`px-4 py-3 rounded-2xl text-xs ${btn3DDark}`}
                     >
-                      Cancel (বাতিল)
+                      Cancel / Managed (বাতিল)
                     </button>
                   </div>
                 </div>
@@ -2341,35 +2935,52 @@ export default function App() {
           </>
         )}
 
-        {/* ================= TAB 2: ALL DONORS DIRECTORY ================= */}
+        {/* ================= TAB 2: ALL DONORS DIRECTORY (AUTO-READINESS + GENDER + ADMIN NUMBER UNLOCK) ================= */}
         {activeTab === "directory" && (
           <div className="space-y-3">
             <div className={`rounded-3xl p-4 border space-y-3 ${cardBg}`}>
-              <h2 className="font-extrabold flex items-center gap-2 text-sm">
-                <Users className="text-red-500 w-5 h-5" /> All Donors • রক্তদাতা তালিকা (
-                {filteredDirectory.length})
-              </h2>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex items-center justify-between">
+                <h2 className="font-extrabold flex items-center gap-2 text-sm">
+                  <Users className="text-red-500 w-5 h-5" /> All Donors • রক্তদাতা তালিকা (
+                  {filteredDirectory.length})
+                </h2>
+                <span className="text-[10px] bg-slate-500/15 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <EyeOff className="w-3 h-3 text-red-500" /> Admin Number Lock
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
                 <select
                   value={filterBlood}
                   onChange={(e) => setFilterBlood(e.target.value)}
                   className="border border-red-300 rounded-xl p-2 text-xs font-extrabold text-red-600 bg-red-50"
                 >
-                  <option value="ALL">All Groups</option>
+                  <option value="ALL">All Blood Groups</option>
                   {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
                     <option key={bg} value={bg}>
                       {bg}
                     </option>
                   ))}
                 </select>
-                <input
-                  type="text"
-                  placeholder="Area (EX: Savar, Dhaka)"
-                  value={filterArea}
-                  onChange={(e) => setFilterArea(e.target.value)}
-                  className={`col-span-2 border rounded-xl p-2 text-xs outline-none ${inputBg}`}
-                />
+
+                <select
+                  value={filterGender}
+                  onChange={(e) => setFilterGender(e.target.value)}
+                  className={`border rounded-xl p-2 text-xs font-bold ${inputBg}`}
+                >
+                  <option value="ALL">All Genders (সকল)</option>
+                  <option value="Male">♂ Male (পুরুষ)</option>
+                  <option value="Female">♀ Female (মহিলা)</option>
+                </select>
               </div>
+
+              <input
+                type="text"
+                placeholder="Search by District or Area (EX: Savar, Dhaka)"
+                value={filterArea}
+                onChange={(e) => setFilterArea(e.target.value)}
+                className={`w-full border rounded-xl p-2 text-xs outline-none ${inputBg}`}
+              />
             </div>
 
             {loadingUsers ? (
@@ -2377,9 +2988,12 @@ export default function App() {
             ) : (
               <div className="space-y-2.5">
                 {filteredDirectory.map((donor) => {
-                  const remDays = getRemainingDays(donor.lastDonation);
+                  const readiness = evaluateDonorReadiness(donor);
                   const avgRating =
                     donor.ratingCount > 0 ? (donor.ratingSum / donor.ratingCount).toFixed(1) : null;
+                  const donorGender = donor.gender || "Male";
+                  const unlocked = canViewPhone(donor.phone);
+
                   return (
                     <div
                       key={donor.id}
@@ -2398,9 +3012,18 @@ export default function App() {
                           </div>
                         )}
                         <div>
-                          <div className="flex items-center gap-1 font-bold text-sm">
-                            {donor.name}
+                          <div className="flex items-center gap-1.5 font-bold text-sm flex-wrap">
+                            <span>{donor.name}</span>
                             {donor.verified && <ShieldCheck className="w-4 h-4 text-blue-500" />}
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                donorGender === "Female"
+                                  ? "bg-pink-500/20 text-pink-400"
+                                  : "bg-sky-500/20 text-sky-400"
+                              }`}
+                            >
+                              {donorGender === "Female" ? "♀ Female" : "♂ Male"}
+                            </span>
                             {avgRating && (
                               <span className="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-bold">
                                 ★ {avgRating}
@@ -2408,14 +3031,17 @@ export default function App() {
                             )}
                           </div>
                           <p className={`text-xs ${subText}`}>{donor.address}</p>
-                          <div className="mt-1 flex items-center gap-2">
-                            {remDays === 0 ? (
+                          <p className="text-[10px] text-slate-400 font-medium">
+                            {formatPhoneDisplay(donor.phone)}
+                          </p>
+                          <div className="mt-1 flex items-center gap-2 flex-wrap">
+                            {readiness.ready ? (
                               <span className="text-[10px] bg-emerald-500/15 text-emerald-500 px-2 py-0.5 rounded-full font-bold">
                                 Ready (প্রস্তুত)
                               </span>
                             ) : (
                               <span className="text-[10px] bg-amber-500/15 text-amber-500 px-2 py-0.5 rounded-full font-semibold">
-                                In {remDays} days
+                                Not Ready: {readiness.reason}
                               </span>
                             )}
                             {donor.phone !== currentUser.phone && (
@@ -2430,31 +3056,40 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-end gap-1.5">
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
                         <span className="bg-red-600 text-white font-extrabold text-xs px-2.5 py-1 rounded-lg">
                           {donor.bloodGroup}
                         </span>
                         <div className="flex gap-1">
-                          <a
-                            href={`tel:${donor.phone}`}
-                            className={`p-1.5 rounded-lg ${btn3DGreen}`}
-                            title="Call"
-                          >
-                            <Phone className="w-3.5 h-3.5" />
-                          </a>
-                          <button
-                            onClick={() => openDirectChat(donor.phone, donor.name)}
-                            className={`p-1.5 rounded-lg ${btn3DRed}`}
-                            title="Chat"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                          </button>
-                          <a
-                            href={`sms:${donor.phone}`}
-                            className={`px-1.5 py-1 rounded-lg text-[10px] flex items-center ${btn3DBlue}`}
-                          >
-                            SMS
-                          </a>
+                          {unlocked ? (
+                            <a
+                              href={`tel:${donor.phone}`}
+                              className={`p-1.5 rounded-lg ${btn3DGreen}`}
+                              title="Call Now"
+                            >
+                              <Phone className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            donor.phone !== currentUser.phone && (
+                              <button
+                                onClick={() => handleRequestNumberUnlock(donor.phone, donor.name)}
+                                className={`px-2 py-1.5 rounded-lg text-[9px] font-bold flex items-center gap-0.5 ${btn3DBlue}`}
+                                title="Request Admin Approval for Number"
+                              >
+                                <PhoneCall className="w-3 h-3" />
+                                {isContactPending(donor.phone) ? "Pending" : "Req No."}
+                              </button>
+                            )
+                          )}
+                          {donor.phone !== currentUser.phone && (
+                            <button
+                              onClick={() => openDirectChat(donor.phone, donor.name)}
+                              className={`px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 ${btn3DRed}`}
+                              title="Open Live Chat"
+                            >
+                              <MessageSquare className="w-3 h-3" /> Chat
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2462,6 +3097,183 @@ export default function App() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ================= NEW SECTION A: ADVANTAGES OF BLOOD DONATION (3-DOT MENU) ================= */}
+        {activeTab === "benefits" && (
+          <div className="space-y-4">
+            <div className={`bg-gradient-to-br ${currentTheme.headerBg} text-white rounded-3xl p-5 shadow-xl relative overflow-hidden`}>
+              <Sparkles className="w-24 h-24 text-white/10 absolute -top-4 -right-4 pointer-events-none" />
+              <div className="flex items-center gap-2 text-amber-300 text-xs font-extrabold uppercase tracking-wider mb-1">
+                <Heart className="w-4 h-4 fill-current" /> Donate Blood, Save Lives
+              </div>
+              <h2 className="text-xl font-extrabold">
+                রক্তদানের উপকারিতা ও অনুপ্রেরণা (Advantages)
+              </h2>
+              <p className="text-xs text-rose-100 mt-1.5 leading-relaxed">
+                রক্তদান শুধু একজন মুমূর্ষু রোগীর জীবনই বাঁচায় না, বরং রক্তদাতার নিজের শরীর ও মনকেও সুস্থ রাখে। জেনে নিন নিয়মিত রক্তদানের বৈজ্ঞানিক ও মানবিক উপকারিতা:
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {DONATION_BENEFITS.map((item, idx) => (
+                <div key={idx} className={`rounded-3xl p-4 border space-y-2 ${cardBg}`}>
+                  <div className="flex justify-between items-start gap-2">
+                    <h3 className="font-extrabold text-sm text-red-500">
+                      {idx + 1}. {item.titleBn}
+                    </h3>
+                    <span className="bg-emerald-500/15 text-emerald-500 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shrink-0">
+                      {item.badge}
+                    </span>
+                  </div>
+                  <p className={`text-[11px] font-semibold ${subText}`}>{item.titleEn}</p>
+                  <p className="text-xs leading-relaxed">{item.desc}</p>
+                  <div className="pt-1 flex justify-end">
+                    <button
+                      onClick={() => {
+                        const shareText = `🩸 ${item.titleBn}\n${item.desc}\n\nরক্তদানে এগিয়ে আসুন, জীবন বাঁচান — RedPulse: https://rokto-bondhu-eight.vercel.app`;
+                        navigator.clipboard?.writeText(shareText);
+                        alert("অনুপ্রেরণামূলক বার্তাটি কপি হয়েছে! এখন ফেসবুক বা হোয়াটসঅ্যাপে শেয়ার করুন।");
+                      }}
+                      className="text-[11px] font-bold text-blue-500 hover:underline flex items-center gap-1"
+                    >
+                      <Share2 className="w-3.5 h-3.5" /> শেয়ার করে অন্যকে উৎসাহিত করুন
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ================= NEW SECTION B: EMERGENCY FIRST-AID & INTERACTIVE ELIGIBILITY QUIZ ================= */}
+        {activeTab === "eligibility" && (
+          <div className="space-y-4">
+            {/* Interactive Eligibility Quiz */}
+            <div className={`rounded-3xl p-5 border space-y-3 ${cardBg}`}>
+              <h2 className="font-extrabold text-base flex items-center gap-2 text-teal-500">
+                <ClipboardCheck className="w-5 h-5" /> রক্তদানের যোগ্যতা কুইজ (Eligibility Quiz)
+              </h2>
+              <p className={`text-xs ${subText}`}>
+                আপনি আজ রক্ত দিতে পারবেন কি না তা নিচের ৫টি তথ্য দিয়ে যাচাই করুন:
+              </p>
+
+              <form onSubmit={handleRunEligibilityQuiz} className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1">বয়স (Age)</label>
+                    <input
+                      required
+                      type="number"
+                      placeholder="EX: 24"
+                      value={quizAge}
+                      onChange={(e) => setQuizAge(e.target.value)}
+                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1">ওজন (Weight kg)</label>
+                    <input
+                      required
+                      type="number"
+                      placeholder="EX: 58"
+                      value={quizWeight}
+                      onChange={(e) => setQuizWeight(e.target.value)}
+                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1">বিরতি (Days)</label>
+                    <input
+                      required
+                      type="number"
+                      placeholder="120+"
+                      value={quizDays}
+                      onChange={(e) => setQuizDays(e.target.value)}
+                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1">হিমোগ্লোবিন মাত্রা</label>
+                    <select
+                      value={quizHemo}
+                      onChange={(e) => setQuizHemo(e.target.value)}
+                      className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
+                    >
+                      <option value="Normal">স্বাভাবিক (Normal 12.5+)</option>
+                      <option value="Low">কম (Low Hemoglobin)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1">কোনো ওষুধ চলছে?</label>
+                    <select
+                      value={quizMed}
+                      onChange={(e) => setQuizMed(e.target.value)}
+                      className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
+                    >
+                      <option value="No">না, সুস্থ আছি (No)</option>
+                      <option value="Yes">হ্যাঁ, ওষুধ চলছে (Yes)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" className={`w-full py-3 rounded-2xl text-xs ${btnPrimary}`}>
+                  যোগ্যতা যাচাই করুন • Check Eligibility
+                </button>
+              </form>
+
+              {quizResult && (
+                <div
+                  className={`p-3.5 rounded-2xl border text-xs font-bold ${
+                    quizResult.ok
+                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
+                      : "bg-amber-500/15 border-amber-500/40 text-amber-500"
+                  }`}
+                >
+                  {quizResult.msg}
+                </div>
+              )}
+            </div>
+
+            {/* Before & After Blood Donation Guidelines */}
+            <div className={`rounded-3xl p-5 border space-y-2.5 ${cardBg}`}>
+              <h3 className="font-extrabold text-sm text-red-500 flex items-center gap-1.5">
+                <HeartPulse className="w-4 h-4" /> রক্তদানের আগে ও পরে করণীয় (সহজ বাংলা গাইডলাইন)
+              </h3>
+              <ul className="space-y-2 text-xs leading-relaxed list-disc pl-4">
+                <li>
+                  <b>রক্তদানের আগে:</b> খালি পেটে রক্ত দেবেন না। রক্তদানের ২-৩ ঘণ্টা আগে পুষ্টিকর খাবার ও পর্যাপ্ত পানি পান করুন। আগের রাতে ভালো ঘুম নিশ্চিত করুন।
+                </li>
+                <li>
+                  <b>রক্তদানের পর:</b> রক্ত দেওয়ার পর অন্তত ১৫-২০ মিনিট বিশ্রাম নিন এবং জুস, ডাবের পানি বা স্যালাইন পান করুন।
+                </li>
+                <li>
+                  <b>পরবর্তী বিরতি:</b> রক্তদানের পর ২৪ ঘণ্টা ভারী ব্যায়াম এড়িয়ে চলুন এবং পরবর্তী রক্তদানের জন্য <b>{COOLDOWN_DAYS} দিন (৪ মাস)</b> অপেক্ষা করুন।
+                </li>
+              </ul>
+            </div>
+
+            {/* Emergency First-Aid Guide */}
+            <div className={`rounded-3xl p-5 border space-y-2.5 ${cardBg}`}>
+              <h3 className="font-extrabold text-sm text-blue-500 flex items-center gap-1.5">
+                <Stethoscope className="w-4 h-4" /> জরুরি ফার্স্ট-এইড গাইডলাইন (Emergency First-Aid)
+              </h3>
+              <div className="space-y-2 text-xs leading-relaxed">
+                <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <b>১. অতিরিক্ত রক্তক্ষরণ বন্ধ করা:</b> পরিষ্কার কাপড় বা গজ দিয়ে ক্ষতস্থানে সরাসরি শক্ত করে চেপে ধরুন (Direct Pressure) এবং সম্ভব হলে আহত অঙ্গটি হার্টের লেভেলের চেয়ে উঁচুতে তুলে রাখুন।
+                </div>
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <b>২. মাথা ঘুরলে বা অজ্ঞান হলে:</b> রোগীকে সমতল জায়গায় শুইয়ে দিন এবং পা দুটি সামান্য উঁচু করে রাখুন যাতে মস্তিষ্কে রক্ত সঞ্চালন বাড়ে। মুখে পানির ঝাপটা দিন ও বাতাস করুন।
+                </div>
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <b>৩. জরুরি অ্যাম্বুলেন্স সহায়তা:</b> দুর্ঘটনায় আহত রোগীকে দ্রুত নিকটস্থ হাসপাতালে নিতে <b>999</b> বা অ্যাপের <b>Blood Banks & Ambulance</b> সেকশন থেকে অ্যাম্বুলেন্স কল করুন।
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -2600,7 +3412,7 @@ export default function App() {
                 <button
                   disabled={submittingReview}
                   type="submit"
-                  className={`w-full py-3 rounded-2xl text-xs ${btn3DRed}`}
+                  className={`w-full py-3 rounded-2xl text-xs ${btnPrimary}`}
                 >
                   {submittingReview ? "Submitting..." : "Submit Review • জমা দিন"}
                 </button>
@@ -2650,7 +3462,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= TAB 6: PROFILE, SOS MEDICAL CARD, HISTORY & WATERMARK ================= */}
+        {/* ================= TAB 6: PROFILE, AUTO-READINESS, CHANGE PASSWORD, SOS CARD & WATERMARK ================= */}
         {activeTab === "profile" && (
           <div className="space-y-4">
             <div className={`rounded-3xl p-5 border space-y-5 ${cardBg}`}>
@@ -2678,7 +3490,7 @@ export default function App() {
                   {currentUser.verified && <ShieldCheck className="w-5 h-5 text-blue-500" />}
                 </h2>
                 <p className={`text-xs ${subText}`}>
-                  {currentUser.phone} • {currentUser.address}
+                  {currentUser.phone} • {currentUser.gender || "Male"} • {currentUser.address}
                 </p>
                 {currentUser.email && (
                   <p className={`text-[11px] flex items-center gap-1 mt-0.5 ${subText}`}>
@@ -2686,13 +3498,26 @@ export default function App() {
                   </p>
                 )}
 
+                {/* AUTO-DETECTED DONOR READINESS BADGE */}
+                <div className="mt-2.5">
+                  {myReadiness.ready ? (
+                    <span className="bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-extrabold">
+                      ✓ Ready to Donate (রক্তদানে প্রস্তুত)
+                    </span>
+                  ) : (
+                    <span className="bg-amber-500/15 text-amber-500 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">
+                      Not Ready: {myReadiness.reason}
+                    </span>
+                  )}
+                </div>
+
                 <div className="flex gap-2 mt-3 flex-wrap justify-center">
                   <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-extrabold">
                     Group: {currentUser.bloodGroup}
                   </span>
                   {userAge !== null && (
                     <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-xs font-bold">
-                      Age: {userAge} yrs
+                      Age: {userAge} yrs • {currentUser.weight || 55} kg
                     </span>
                   )}
                   <span className="bg-amber-500/20 text-amber-500 px-3 py-1 rounded-full text-xs font-bold">
@@ -2731,15 +3556,28 @@ export default function App() {
 
               {editMode ? (
                 <form onSubmit={handleUpdateProfile} className="space-y-3 border-t border-slate-500/20 pt-4">
-                  <div>
-                    <label className="block text-xs font-bold">Full Name (নাম)</label>
-                    <input
-                      required
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className={`w-full border rounded-xl p-2.5 text-sm ${inputBg}`}
-                    />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-bold">Full Name (নাম)</label>
+                      <input
+                        required
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold">Gender</label>
+                      <select
+                        value={editGender}
+                        onChange={(e) => setEditGender(e.target.value)}
+                        className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -2749,7 +3587,7 @@ export default function App() {
                         type="email"
                         value={editEmail}
                         onChange={(e) => setEditEmail(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                       />
                     </div>
                     <div>
@@ -2758,17 +3596,54 @@ export default function App() {
                         type="date"
                         value={editDob}
                         onChange={(e) => setEditDob(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                       />
                     </div>
                   </div>
+
+                  {/* HEALTH READINESS INPUTS IN EDIT PROFILE */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold">Weight (kg)</label>
+                      <input
+                        required
+                        type="number"
+                        value={editWeight}
+                        onChange={(e) => setEditWeight(e.target.value)}
+                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold">Hemoglobin</label>
+                      <select
+                        value={editHemoglobin}
+                        onChange={(e) => setEditHemoglobin(e.target.value)}
+                        className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
+                      >
+                        <option value="Normal">Normal</option>
+                        <option value="Low">Low</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold">Medicine?</label>
+                      <select
+                        value={editMedication}
+                        onChange={(e) => setEditMedication(e.target.value)}
+                        className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs font-bold">Blood Group</label>
                       <select
                         value={editBlood}
                         onChange={(e) => setEditBlood(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-sm font-bold text-red-500 ${inputBg}`}
+                        className={`w-full border rounded-xl p-2 text-xs font-bold text-red-500 ${inputBg}`}
                       >
                         {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
                           <option key={bg} value={bg}>
@@ -2783,7 +3658,7 @@ export default function App() {
                         type="date"
                         value={editLastDonation}
                         onChange={(e) => setEditLastDonation(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                       />
                     </div>
                   </div>
@@ -2794,7 +3669,7 @@ export default function App() {
                       type="text"
                       value={editAddress}
                       onChange={(e) => setEditAddress(e.target.value)}
-                      className={`w-full border rounded-xl p-2.5 text-sm ${inputBg}`}
+                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -2805,7 +3680,7 @@ export default function App() {
                         placeholder="01XXXXXXXXX"
                         value={editEmergencyContact}
                         onChange={(e) => setEditEmergencyContact(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                       />
                     </div>
                     <div>
@@ -2815,12 +3690,12 @@ export default function App() {
                         placeholder="EX: None / Dust"
                         value={editAllergies}
                         onChange={(e) => setEditAllergies(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
                       />
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button type="submit" className={`flex-1 py-3 rounded-2xl text-xs ${btn3DRed}`}>
+                    <button type="submit" className={`flex-1 py-3 rounded-2xl text-xs ${btnPrimary}`}>
                       Save Changes • সেভ করুন
                     </button>
                     <button
@@ -2837,8 +3712,12 @@ export default function App() {
                   <button
                     onClick={() => {
                       setEditName(currentUser.name);
+                      setEditGender(currentUser.gender || "Male");
                       setEditEmail(currentUser.email || "");
                       setEditDob(currentUser.dob || "");
+                      setEditWeight(currentUser.weight || "58");
+                      setEditHemoglobin(currentUser.hemoglobin || "Normal");
+                      setEditMedication(currentUser.onMedication || "No");
                       setEditBlood(currentUser.bloodGroup);
                       setEditAddress(currentUser.address);
                       setEditLastDonation(currentUser.lastDonation || "");
@@ -2848,8 +3727,43 @@ export default function App() {
                     }}
                     className={`w-full py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 ${btn3DDark}`}
                   >
-                    <Edit3 className="w-4 h-4" /> Edit Profile & SOS Card (প্রোফাইল এডিট)
+                    <Edit3 className="w-4 h-4" /> Edit Profile & Health Status (প্রোফাইল এডিট)
                   </button>
+
+                  {/* CHANGE PASSWORD SECTION INSIDE PROFILE */}
+                  <button
+                    onClick={() => setShowChangePass(!showChangePass)}
+                    className="w-full py-2.5 rounded-2xl text-xs font-bold border border-slate-500/30 flex items-center justify-center gap-1.5"
+                  >
+                    <KeyRound className="w-4 h-4 text-amber-500" /> Change Password (পাসওয়ার্ড পরিবর্তন)
+                  </button>
+
+                  {showChangePass && (
+                    <form
+                      onSubmit={handleProfilePasswordChange}
+                      className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 space-y-2.5"
+                    >
+                      <input
+                        required
+                        type="password"
+                        placeholder="Current Password (বর্তমান পাসওয়ার্ড)"
+                        value={oldPassInput}
+                        onChange={(e) => setOldPassInput(e.target.value)}
+                        className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                      />
+                      <input
+                        required
+                        type="password"
+                        placeholder="New Password (নতুন পাসওয়ার্ড - Min 4 chars)"
+                        value={profileNewPassInput}
+                        onChange={(e) => setProfileNewPassInput(e.target.value)}
+                        className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
+                      />
+                      <button type="submit" className={`w-full py-2.5 rounded-xl text-xs ${btnPrimary}`}>
+                        Update Password • সেভ করুন
+                      </button>
+                    </form>
+                  )}
 
                   {!currentUser.verified && (
                     <div className="bg-blue-500/10 border border-blue-400/30 p-3.5 rounded-2xl space-y-2">
@@ -2912,21 +3826,13 @@ export default function App() {
 
             {/* DEVELOPER WATERMARK AT THE BOTTOM OF PROFILE PAGE */}
             <div
-              className={`rounded-3xl p-5 border text-center select-none relative overflow-hidden ${
-                darkMode
-                  ? "bg-[#111827]/70 border-slate-800 text-slate-400"
-                  : "bg-white border-red-100 text-slate-500"
-              }`}
+              className={`rounded-3xl p-5 border text-center select-none relative overflow-hidden ${cardBg}`}
             >
               <Droplet className="w-20 h-20 text-red-500/5 absolute -bottom-4 -right-4 pointer-events-none" />
               <p className="text-[10px] uppercase tracking-[0.22em] font-semibold text-red-500/80 mb-1">
                 Developed by
               </p>
-              <h4
-                className={`text-base font-extrabold tracking-wide font-serif ${
-                  darkMode ? "text-slate-200" : "text-slate-800"
-                }`}
-              >
+              <h4 className="text-base font-extrabold tracking-wide font-serif">
                 Mohammad Rejwan Islam
               </h4>
               <p className="text-xs font-medium mt-0.5 tracking-wide">
@@ -2939,12 +3845,12 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= TAB 7: SUPER ADMIN CONTROL PANEL ================= */}
+        {/* ================= TAB 7: SUPER ADMIN CONTROL, LIVE RADAR MONITOR & SURVEILLANCE ================= */}
         {activeTab === "admin" && currentUser.isAdmin && (
           <div className={`rounded-3xl p-5 border space-y-4 ${cardBg}`}>
             <div className="flex items-center justify-between border-b border-slate-500/20 pb-3">
               <h2 className="font-extrabold flex items-center gap-2 text-sm">
-                <Lock className="text-red-500 w-5 h-5" /> RedPulse Admin Control
+                <Lock className="text-red-500 w-5 h-5" /> RedPulse Admin Control & Surveillance
               </h2>
               {adminUnlocked && (
                 <button
@@ -2972,13 +3878,126 @@ export default function App() {
                   onChange={(e) => setPinEntry(e.target.value)}
                   className={`w-full border rounded-xl p-3 text-center text-lg font-extrabold tracking-widest ${inputBg}`}
                 />
-                <button type="submit" className={`w-full py-3 rounded-2xl text-xs ${btn3DRed}`}>
+                <button type="submit" className={`w-full py-3 rounded-2xl text-xs ${btnPrimary}`}>
                   Unlock Admin Panel
                 </button>
               </form>
             ) : (
               <div className="space-y-6">
-                {/* 1. PENDING BLOOD REQUESTS VERIFICATION (Anti-Fake Filter) */}
+                {/* 1. LIVE RADAR ON DONORS MONITOR (WHO HAS RADAR ON RIGHT NOW) */}
+                <div>
+                  <h3 className="text-xs font-extrabold uppercase text-emerald-500 mb-2 flex items-center gap-1.5">
+                    <Activity className="w-4 h-4 animate-pulse" /> Live Radar ON Donors ({onlineDonorsList.length} Active Now)
+                  </h3>
+                  {onlineDonorsList.length === 0 ? (
+                    <p className={`text-xs ${subText}`}>No donor has Radar ON right now.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {onlineDonorsList.map((od) => (
+                        <div
+                          key={od.phone}
+                          className="bg-emerald-500/15 border border-emerald-500/30 p-3 rounded-2xl flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <div className="font-extrabold flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                              {od.name} ({od.bloodGroup} • {od.gender || "Male"})
+                            </div>
+                            <div className={`text-[11px] ${subText}`}>
+                              Phone: <b>{od.phone}</b> • {od.address || "GPS Active"}
+                            </div>
+                          </div>
+                          <div className="flex gap-1.5">
+                            <a
+                              href={`tel:${od.phone}`}
+                              className="bg-emerald-600 text-white px-2.5 py-1.5 rounded-xl font-bold flex items-center gap-1"
+                            >
+                              <Phone className="w-3 h-3" /> Call
+                            </a>
+                            <button
+                              onClick={() => openDirectChat(od.phone, od.name)}
+                              className="bg-blue-600 text-white px-2.5 py-1.5 rounded-xl font-bold"
+                            >
+                              Chat
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. PENDING PHONE NUMBER UNLOCK APPROVALS */}
+                <div>
+                  <h3 className="text-xs font-extrabold uppercase text-blue-400 mb-2">
+                    Phone Number Unlock Requests ({pendingContactRequests.length} Pending / {contactRequestsMonitor.length} Total)
+                  </h3>
+                  {contactRequestsMonitor.length === 0 ? (
+                    <p className={`text-xs ${subText}`}>No phone unlock requests yet.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {contactRequestsMonitor.map((c) => (
+                        <div
+                          key={c.id}
+                          className={`p-3 rounded-2xl border text-xs space-y-1.5 ${
+                            c.status === "approved"
+                              ? "bg-emerald-500/10 border-emerald-500/30"
+                              : "bg-blue-500/15 border-blue-500/40"
+                          }`}
+                        >
+                          <div className="flex justify-between font-bold">
+                            <span>
+                              {c.requesterName} ({c.requesterPhone}) → {c.targetName} ({c.targetPhone})
+                            </span>
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded ${
+                                c.status === "approved"
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-amber-500 text-slate-950"
+                              }`}
+                            >
+                              {c.status === "approved" ? "Approved" : "Pending"}
+                            </span>
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            {c.status !== "approved" ? (
+                              <button
+                                onClick={() => {
+                                  update(ref(rtdb, `call_requests/${c.id}`), {
+                                    status: "approved",
+                                  });
+                                  alert("Approved! User can now see the phone number and call directly.");
+                                }}
+                                className="bg-emerald-600 text-white px-3 py-1 rounded-lg font-bold"
+                              >
+                                Approve Number & Call • অনুমোদন দিন
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  update(ref(rtdb, `call_requests/${c.id}`), {
+                                    status: "pending",
+                                  });
+                                }}
+                                className="bg-amber-600 text-white px-2.5 py-1 rounded-lg font-bold"
+                              >
+                                Revoke Access
+                              </button>
+                            )}
+                            <button
+                              onClick={() => remove(ref(rtdb, `call_requests/${c.id}`))}
+                              className="bg-red-600 text-white px-2.5 py-1 rounded-lg font-bold ml-auto"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. PENDING BLOOD REQUESTS VERIFICATION */}
                 <div>
                   <h3 className="text-xs font-extrabold uppercase text-purple-400 mb-2">
                     Pending Blood Requests ({pendingAdminRequests.length} Awaiting Verification)
@@ -3032,7 +4051,42 @@ export default function App() {
                   )}
                 </div>
 
-                {/* 2. User Reviews Moderation */}
+                {/* 4. LIVE CHAT SURVEILLANCE MONITOR (ADMIN SEES EVERY MESSAGE) */}
+                <div>
+                  <h3 className="text-xs font-extrabold uppercase text-rose-500 mb-2">
+                    Live Chat Surveillance ({allChatsMonitor.length} Messages)
+                  </h3>
+                  {allChatsMonitor.length === 0 ? (
+                    <p className={`text-xs ${subText}`}>No chat messages recorded yet.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-72 overflow-y-auto">
+                      {allChatsMonitor.map((m) => (
+                        <div
+                          key={m.msgId}
+                          className={`p-2.5 rounded-xl border text-xs flex justify-between items-start gap-2 ${
+                            darkMode ? "bg-slate-800/70 border-slate-700" : "bg-slate-50 border-slate-200"
+                          }`}
+                        >
+                          <div>
+                            <div className="font-bold text-[11px] text-amber-500">
+                              {m.senderName} ({m.senderPhone}) → {m.receiverName || "User"} (
+                              {m.receiverPhone || ""}) • <span className="text-slate-400">{m.time}</span>
+                            </div>
+                            <p className="mt-0.5">{m.text}</p>
+                          </div>
+                          <button
+                            onClick={() => remove(ref(rtdb, `chats/${m.roomId}/${m.msgId}`))}
+                            className="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold shrink-0"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. User Reviews Moderation */}
                 <div>
                   <h3 className="text-xs font-extrabold uppercase text-amber-500 mb-2">
                     User Reviews Moderation ({pendingReviews.length} Pending / {approvedReviews.length} Published)
@@ -3101,7 +4155,7 @@ export default function App() {
                   )}
                 </div>
 
-                {/* 3. Active Live Emergency Requests */}
+                {/* 6. Active Live Emergency Requests */}
                 <div>
                   <h3 className="text-xs font-extrabold uppercase text-red-500 mb-2">
                     Active Live Requests ({liveAllRequests.filter((r) => r.status !== "pending_admin").length})
@@ -3132,7 +4186,52 @@ export default function App() {
                   )}
                 </div>
 
-                {/* 4. Admin Edit User Form */}
+                {/* 7. Admin Reset User Password Box */}
+                {adminResetPassUser && (
+                  <div className="bg-purple-500/15 border border-purple-400/40 p-3.5 rounded-2xl space-y-2">
+                    <h4 className="font-bold text-xs text-purple-400">
+                      Reset Password for: {adminResetPassUser.name} ({adminResetPassUser.phone})
+                    </h4>
+                    <input
+                      type="text"
+                      value={adminNewPassVal}
+                      onChange={(e) => setAdminNewPassVal(e.target.value)}
+                      placeholder="Enter new password (Min 4 chars)"
+                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          if (adminNewPassVal.length < 4) {
+                            alert("Min 4 characters required.");
+                            return;
+                          }
+                          await updateDoc(doc(db, "users", adminResetPassUser.id), {
+                            password: adminNewPassVal,
+                          });
+                          setAdminResetPassUser(null);
+                          setAdminNewPassVal("");
+                          fetchAllUsers();
+                          alert("User password reset successfully!");
+                        }}
+                        className="flex-1 bg-purple-600 text-white py-1.5 rounded-xl text-xs font-bold"
+                      >
+                        Set Password
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAdminResetPassUser(null);
+                          setAdminNewPassVal("");
+                        }}
+                        className="bg-slate-500/30 px-3 py-1.5 rounded-xl text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 8. Admin Edit User Form */}
                 {adminEditUser && (
                   <div className="bg-amber-500/15 border border-amber-400/40 p-3.5 rounded-2xl space-y-2">
                     <h4 className="font-bold text-xs text-amber-500">
@@ -3195,17 +4294,19 @@ export default function App() {
                   </div>
                 )}
 
-                {/* 5. All Registered Users Management */}
+                {/* 9. All Registered Users Management */}
                 <div>
                   <h3 className="text-xs font-extrabold uppercase mb-2">
-                    All Registered Users ({allUsers.length})
+                    All Registered Users ({allUsers.length}) — Full Numbers Visible to Admin
                   </h3>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {allUsers.map((u) => (
                       <div
                         key={u.id}
                         className={`border rounded-2xl p-3 flex flex-col gap-2 text-xs ${
-                          (u.reports || 0) > 0
+                          u.banned
+                            ? "bg-red-900/25 border-red-600"
+                            : (u.reports || 0) > 0
                             ? "bg-red-500/15 border-red-400"
                             : darkMode
                             ? "bg-slate-800/60 border-slate-700"
@@ -3214,8 +4315,13 @@ export default function App() {
                       >
                         <div>
                           <div className="font-bold flex items-center gap-1 flex-wrap">
-                            {u.name} ({u.bloodGroup})
+                            {u.name} ({u.bloodGroup} • {u.gender || "Male"})
                             {u.verified && <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />}
+                            {u.banned && (
+                              <span className="bg-red-700 text-white text-[9px] px-1.5 py-0.5 rounded">
+                                BANNED
+                              </span>
+                            )}
                             {(u.phone === MASTER_ADMIN_PHONE || u.role === "admin") && (
                               <span className="bg-purple-600 text-white text-[9px] px-1.5 py-0.5 rounded">
                                 ADMIN
@@ -3228,7 +4334,10 @@ export default function App() {
                             )}
                           </div>
                           <div className={subText}>
-                            {u.phone} • {u.address}
+                            <a href={`tel:${u.phone}`} className="text-emerald-400 font-bold underline">
+                              {u.phone}
+                            </a>{" "}
+                            • {u.address}
                           </div>
                         </div>
 
@@ -3238,6 +4347,16 @@ export default function App() {
                             className="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1"
                           >
                             <Edit3 className="w-3 h-3" /> Edit
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setAdminResetPassUser(u);
+                              setAdminNewPassVal("");
+                            }}
+                            className="bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1"
+                          >
+                            <KeyRound className="w-3 h-3" /> Reset Pass
                           </button>
 
                           <button
@@ -3252,6 +4371,16 @@ export default function App() {
 
                           {u.phone !== MASTER_ADMIN_PHONE && (
                             <>
+                              <button
+                                onClick={async () => {
+                                  await updateDoc(doc(db, "users", u.id), { banned: !u.banned });
+                                  fetchAllUsers();
+                                }}
+                                className="bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1"
+                              >
+                                <Ban className="w-3 h-3" /> {u.banned ? "Unban" : "Ban"}
+                              </button>
+
                               <button
                                 onClick={async () => {
                                   const nextRole = u.role === "admin" ? "user" : "admin";
@@ -3289,11 +4418,7 @@ export default function App() {
 
       {/* CLEAN 3-ITEM BOTTOM NAVIGATION BAR */}
       <nav
-        className={`fixed bottom-0 inset-x-0 border-t shadow-2xl flex justify-around py-2.5 z-40 backdrop-blur-md ${
-          darkMode
-            ? "bg-[#0B1120]/95 border-slate-800"
-            : "bg-white/95 border-slate-200"
-        }`}
+        className={`fixed bottom-0 inset-x-0 border-t shadow-2xl flex justify-around py-2.5 z-40 backdrop-blur-md ${currentTheme.navBg}`}
       >
         <button
           onClick={() => {
@@ -3301,7 +4426,7 @@ export default function App() {
             setShowMoreMenu(false);
           }}
           className={`flex flex-col items-center text-xs font-extrabold transition ${
-            activeTab === "radar" ? "text-red-500 scale-105" : "text-slate-400"
+            activeTab === "radar" ? `${currentTheme.accentText} scale-105` : "text-slate-400"
           }`}
         >
           <Radio className="w-5 h-5 mb-0.5" /> Radar (রাডার)
@@ -3313,7 +4438,7 @@ export default function App() {
             setShowMoreMenu(false);
           }}
           className={`flex flex-col items-center text-xs font-extrabold transition ${
-            activeTab === "directory" ? "text-red-500 scale-105" : "text-slate-400"
+            activeTab === "directory" ? `${currentTheme.accentText} scale-105` : "text-slate-400"
           }`}
         >
           <Users className="w-5 h-5 mb-0.5" /> Donors (রক্তদাতা)
@@ -3325,7 +4450,7 @@ export default function App() {
             setShowMoreMenu(false);
           }}
           className={`flex flex-col items-center text-xs font-extrabold transition ${
-            activeTab === "profile" ? "text-red-500 scale-105" : "text-slate-400"
+            activeTab === "profile" ? `${currentTheme.accentText} scale-105` : "text-slate-400"
           }`}
         >
           <User className="w-5 h-5 mb-0.5" /> Profile (প্রোফাইল)
