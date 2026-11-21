@@ -71,7 +71,6 @@ import {
   PhoneCall,
   Palette,
   Activity,
-  FirstAid,
   Stethoscope,
 } from "lucide-react";
 
