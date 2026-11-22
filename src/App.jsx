@@ -389,15 +389,71 @@ const sendBackgroundPush = async (targetTokens, title, body, isAlarm = false) =>
     });
   } catch (e) {}
 };
-  const triggerAlertNotification = (title, body, isAlarm = false) => {
-    playSoundEffect(isAlarm ? 'alarm' : 'chime');
+const alarmIntervalRef = useRef(null);
+const audioCtxRef = useRef(null);
 
-    // ১) ইন-অ্যাপ ভিজ্যুয়াল পপ-আপ ব্যানার (অ্যাপ খোলা থাকলেই সাথে সাথে দেখাবে)
-    setInAppToast({ id: Date.now(), title, body, isAlarm });
+const startContinuousAlarm = () => {
+  stopContinuousAlarm();
+
+  const playSirenPulse = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(1350, ctx.currentTime + 0.4);
+      osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.8);
+
+      gain.gain.setValueAtTime(1.0, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.85);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.85);
+
+      if (navigator.vibrate) {
+        navigator.vibrate([500, 200, 500]);
+      }
+    } catch (e) {}
+  };
+
+  playSirenPulse();
+  alarmIntervalRef.current = setInterval(playSirenPulse, 1000);
+};
+
+const stopContinuousAlarm = () => {
+  if (alarmIntervalRef.current) {
+    clearInterval(alarmIntervalRef.current);
+    alarmIntervalRef.current = null;
+  }
+  if (navigator.vibrate) {
+    navigator.vibrate(0);
+  }
+};
+  const triggerAlertNotification = (title, body, isAlarm = false) => {
+  if (isAlarm) {
+    startContinuousAlarm();
+  } else {
+    playSoundEffect('chime');
+  }
+
+  // ১) ইন-অ্যাপ ভিজ্যুয়াল পপ-আপ ব্যানার (অ্যাপ খোলা থাকলেই সাথে সাথে দেখাবে)
+  setInAppToast({ id: Date.now(), title, body, isAlarm });
+  if (!isAlarm) {
     setTimeout(() => {
       setInAppToast((prev) => (prev && Date.now() - prev.id >= 5500 ? null : prev));
     }, 6000);
-
+  }
     // ২) সিস্টেম / সার্ভিস ওয়ার্কার পুশ নোটিফিকেশন
     if ('Notification' in window && Notification.permission === 'granted') {
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
@@ -1080,7 +1136,10 @@ sendBackgroundPush(
       {/* ইন-অ্যাপ লাইভ নোটিফিকেশন টোস্ট ব্যানার */}
       {inAppToast && (
         <div
-          onClick={() => { setShowNotifDrawer(true); setInAppToast(null); }}
+         onClick={() => {
+  stopContinuousAlarm();
+  setInAppToast(null);
+}}
           className={`fixed top-16 left-3 right-3 max-w-md mx-auto z-50 p-3.5 rounded-2xl border cursor-pointer flex items-center justify-between gap-3 animate-bounce ${
             inAppToast.isAlarm ? 'bg-rose-600 text-white border-rose-400 shadow-2xl' : `${theme.card}`
           }`}
