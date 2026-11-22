@@ -440,6 +440,26 @@ const stopContinuousAlarm = () => {
     navigator.vibrate(0);
   }
 };
+// ইউজার স্ক্রিনে প্রথমবার টাচ/ক্লিক করলেই ব্রাউজারের অডিও ইঞ্জিন স্থায়ীভাবে আনলক করা
+useEffect(() => {
+  const unlockAudio = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      }
+      if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+    } catch (e) {}
+  };
+  window.addEventListener('touchstart', unlockAudio, { passive: true });
+  window.addEventListener('click', unlockAudio, { passive: true });
+  return () => {
+    window.removeEventListener('touchstart', unlockAudio);
+    window.removeEventListener('click', unlockAudio);
+  };
+}, []);
   const triggerAlertNotification = (title, body, isAlarm = false) => {
   if (isAlarm) {
     startContinuousAlarm();
