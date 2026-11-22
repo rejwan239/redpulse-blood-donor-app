@@ -1,3095 +1,1210 @@
-import React, { useState, useEffect, useRef } from "react";
-import { db, rtdb } from "./firebase";
+import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
 import {
+  getFirestore,
   collection,
-  addDoc,
-  getDocs,
   doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  addDoc,
   updateDoc,
   deleteDoc,
+  onSnapshot,
   query,
-  where,
-} from "firebase/firestore";
-import { ref, set, onValue, update, remove, push } from "firebase/database";
+  orderBy,
+  serverTimestamp
+} from 'firebase/firestore';
 import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  Circle,
-  useMapEvents,
-  useMap,
-} from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import {
-  Bell,
-  Phone,
-  ShieldAlert,
-  Search,
-  Edit3,
-  Award,
-  User,
-  Users,
-  ShieldCheck,
-  Lock,
-  LogOut,
-  Camera,
-  Trash2,
-  UserCheck,
-  Send,
-  Droplet,
-  KeyRound,
-  Share2,
-  Volume2,
-  MessageSquare,
-  Building2,
-  Ambulance,
-  Star,
-  AlertTriangle,
-  PlusCircle,
-  X,
-  Car,
-  Mail,
-  CheckCircle2,
-  Quote,
-  Globe,
-  MoreVertical,
-  ChevronDown,
-  ChevronUp,
-  Radio,
-  MapPin,
-  HeartPulse,
-  History,
-  Copy,
-  Clock,
   Heart,
-  Sparkles,
-  ClipboardCheck,
-  EyeOff,
-  Ban,
-  PhoneCall,
+  Bell,
   Palette,
+  Home,
+  Droplet,
+  User,
+  Shield,
+  Database,
+  Building2,
+  Users,
+  UserCheck,
+  Award,
   Activity,
-  Stethoscope,
-} from "lucide-react";
+  Star,
+  Info,
+  FileBadge,
+  Ambulance,
+  Search,
+  Send,
+  Phone,
+  MapPin,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  Edit3,
+  Trash2,
+  Ban,
+  Volume2,
+  Plus,
+  Minus,
+  LogOut,
+  Lock,
+  Mail,
+  Navigation,
+  Sparkles,
+  ChevronRight,
+  Download,
+  Share2,
+  Stethoscope
+} from 'lucide-react';
 
-// Master Admin Configuration
-const MASTER_ADMIN_PHONE = "01345365867";
-const ADMIN_SECRET_PIN = "7596";
-
-// 120-Day Blood Donation Cooldown Constant
-const COOLDOWN_DAYS = 120;
-
-// 5 Premium Themes Configuration
-const APP_THEMES = {
-  crimson: {
-    label: "Crimson Pulse",
-    isDark: false,
-    pageBg: "bg-slate-50 text-slate-900",
-    headerBg: "from-red-700 via-red-600 to-rose-600",
-    cardBg: "bg-white border-slate-200/80 text-slate-800 shadow-md shadow-slate-200/50",
-    inputBg: "bg-slate-50 border-slate-200 text-slate-900 focus:border-red-500",
-    subText: "text-slate-500",
-    navBg: "bg-white/95 border-slate-200",
-    accentText: "text-red-600",
-    primaryBtn:
-      "bg-gradient-to-b from-red-500 to-red-600 hover:from-red-500 hover:to-red-700 text-white font-extrabold border-b-4 border-red-800 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-red-600/25 transition-all",
-  },
-  midnight: {
-    label: "Midnight Dark",
-    isDark: true,
-    pageBg: "bg-[#0B1120] text-slate-100",
-    headerBg: "from-slate-900 via-red-950 to-slate-900",
-    cardBg: "bg-[#111827]/95 border-slate-800/90 text-slate-100 shadow-xl shadow-black/30",
-    inputBg: "bg-[#1E293B] border-slate-700 text-white placeholder-slate-400 focus:border-red-500",
-    subText: "text-slate-400",
-    navBg: "bg-[#0B1120]/95 border-slate-800",
-    accentText: "text-red-400",
-    primaryBtn:
-      "bg-gradient-to-b from-red-500 to-red-600 hover:from-red-500 hover:to-red-700 text-white font-extrabold border-b-4 border-red-900 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-red-600/25 transition-all",
-  },
-  emerald: {
-    label: "Emerald Care",
-    isDark: false,
-    pageBg: "bg-emerald-50/60 text-slate-900",
-    headerBg: "from-emerald-700 via-teal-600 to-emerald-600",
-    cardBg: "bg-white border-emerald-200/80 text-slate-800 shadow-md shadow-emerald-200/40",
-    inputBg: "bg-emerald-50/50 border-emerald-200 text-slate-900 focus:border-emerald-600",
-    subText: "text-slate-500",
-    navBg: "bg-white/95 border-emerald-200",
-    accentText: "text-emerald-600",
-    primaryBtn:
-      "bg-gradient-to-b from-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-700 text-white font-extrabold border-b-4 border-emerald-800 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-emerald-600/25 transition-all",
-  },
-  ocean: {
-    label: "Royal Ocean",
-    isDark: false,
-    pageBg: "bg-sky-50/70 text-slate-900",
-    headerBg: "from-blue-800 via-indigo-700 to-sky-700",
-    cardBg: "bg-white border-sky-200/80 text-slate-800 shadow-md shadow-sky-200/40",
-    inputBg: "bg-sky-50/50 border-sky-200 text-slate-900 focus:border-blue-600",
-    subText: "text-slate-500",
-    navBg: "bg-white/95 border-sky-200",
-    accentText: "text-blue-600",
-    primaryBtn:
-      "bg-gradient-to-b from-blue-600 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-extrabold border-b-4 border-blue-900 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-blue-600/25 transition-all",
-  },
-  sunset: {
-    label: "Sunset Amber",
-    isDark: false,
-    pageBg: "bg-amber-50/70 text-stone-900",
-    headerBg: "from-amber-700 via-orange-600 to-red-700",
-    cardBg: "bg-white border-amber-200/80 text-stone-800 shadow-md shadow-amber-200/40",
-    inputBg: "bg-amber-50/50 border-amber-200 text-stone-900 focus:border-amber-600",
-    subText: "text-stone-500",
-    navBg: "bg-white/95 border-amber-200",
-    accentText: "text-amber-700",
-    primaryBtn:
-      "bg-gradient-to-b from-amber-500 to-orange-600 hover:from-amber-500 hover:to-orange-700 text-white font-extrabold border-b-4 border-amber-800 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-amber-600/25 transition-all",
-  },
+// ============================================================================
+// ১. আপনার আগের FIREBASE CONFIG এখানে বসান (অপরিবর্তিত রাখুন)
+// ============================================================================
+const firebaseConfig = {
+  apiKey: "আপনার_API_KEY_বসান",
+  authDomain: "rokto-bondhu-aa008.firebaseapp.com",
+  databaseURL: "https://rokto-bondhu-aa008-default-rtdb.firebaseio.com",
+  projectId: "rokto-bondhu-aa008",
+  storageBucket: "rokto-bondhu-aa008.firebasestorage.app",
+  messagingSenderId: "আপনার_SENDER_ID_বসান",
+  appId: "আপনার_APP_ID_বসান"
 };
 
-// Emergency Blood Bank & Ambulance Directory
-const EMERGENCY_DIRECTORY = [
-  { name: "Sandhani (Dhaka Medical College Unit)", area: "Dhaka", phone: "01711-000000", type: "Blood Bank" },
-  { name: "Quantum Lab & Blood Bank", area: "Shantinagar, Dhaka", phone: "01714-010869", type: "Blood Bank" },
-  { name: "Bangladesh Red Crescent Blood Bank", area: "Mohammadpur, Dhaka", phone: "01811-458537", type: "Blood Bank" },
-  { name: "Enam Medical College Blood Bank", area: "Savar, Dhaka", phone: "01716-358146", type: "Blood Bank" },
-  { name: "Badhan (Jahangirnagar University Zone)", area: "Savar, Dhaka", phone: "01500-000000", type: "Blood Bank" },
-  { name: "National Emergency Service (Ambulance & Police)", area: "All Bangladesh", phone: "999", type: "Ambulance" },
-  { name: "Anjuman Mufidul Islam Ambulance", area: "Dhaka & Savar", phone: "01711-539634", type: "Ambulance" },
-  { name: "Savar Highway Emergency Ambulance", area: "Savar, Dhaka", phone: "01712-987654", type: "Ambulance" },
-];
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-// Inspirational Benefits / Advantages of Blood Donation Data
-const DONATION_BENEFITS = [
-  {
-    titleBn: "হার্ট অ্যাটাক ও স্ট্রোকের ঝুঁকি কমায়",
-    titleEn: "Reduces Heart Attack & Stroke Risk",
-    desc: "নিয়মিত রক্তদান করলে রক্তে অতিরিক্ত আয়রনের ভারসাম্য ঠিক থাকে এবং রক্ত ঘন হওয়ার প্রবণতা কমে, যা হৃদরোগের ঝুঁকি প্রায় ৮৮% পর্যন্ত কমিয়ে দেয়।",
-    badge: "Healthy Heart",
+// ============================================================================
+// ২. কনস্ট্যান্ট ও ৫টি প্রিমিয়াম 3D থিম কনফিগারেশন
+// ============================================================================
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+const RARE_GROUPS = ['A-', 'B-', 'O-', 'AB-'];
+const COOLDOWN_DAYS = 120;
+
+const THEMES = {
+  crimson: {
+    id: 'crimson',
+    name: 'Crimson Pulse',
+    bg: 'bg-rose-50/90',
+    card: 'bg-white/90 border-rose-200/80 shadow-[0_10px_25px_-5px_rgba(225,29,72,0.15),0_4px_0_0_rgba(225,29,72,0.2)]',
+    btn3d: 'bg-gradient-to-b from-rose-500 to-rose-600 text-white shadow-[0_6px_0_0_#9f1239,0_12px_20px_rgba(225,29,72,0.35)] active:shadow-[0_2px_0_0_#9f1239] active:translate-y-1',
+    accentText: 'text-rose-600',
+    accentBg: 'bg-rose-600',
+    badge: 'bg-rose-100 text-rose-700 border-rose-200',
+    watermark: '#e11d48',
+    textMain: 'text-slate-800',
+    textSub: 'text-slate-500',
+    navBg: 'bg-white/95 border-rose-200 shadow-[0_-10px_30px_rgba(225,29,72,0.12)]'
   },
-  {
-    titleBn: "শরীরে নতুন ও সতেজ রক্তকণিকা তৈরি হয়",
-    titleEn: "Stimulates Fresh Blood Cell Production",
-    desc: "রক্ত দেওয়ার পর শরীরের বোন ম্যারো দ্রুত নতুন ও সতেজ লোহিত রক্তকণিকা তৈরি করতে উদ্দীপ্ত হয়, যা শরীরকে আরও কর্মক্ষম ও রোগপ্রতিরোধী করে তোলে।",
-    badge: "Cell Renewal",
+  midnight: {
+    id: 'midnight',
+    name: 'Midnight Dark',
+    bg: 'bg-slate-950',
+    card: 'bg-slate-900/90 border-slate-700/80 shadow-[0_12px_28px_-5px_rgba(0,0,0,0.6),0_4px_0_0_#1e293b]',
+    btn3d: 'bg-gradient-to-b from-rose-500 to-red-700 text-white shadow-[0_6px_0_0_#4c0519,0_12px_24px_rgba(244,63,94,0.4)] active:shadow-[0_2px_0_0_#4c0519] active:translate-y-1',
+    accentText: 'text-rose-400',
+    accentBg: 'bg-rose-500',
+    badge: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+    watermark: '#fb7185',
+    textMain: 'text-slate-100',
+    textSub: 'text-slate-400',
+    navBg: 'bg-slate-900/95 border-slate-800 shadow-[0_-10px_30px_rgba(0,0,0,0.6)]'
   },
-  {
-    titleBn: "বিনামূল্যে নিয়মিত স্বাস্থ্য পরীক্ষা",
-    titleEn: "Free Mini Health Checkup",
-    desc: "প্রতিবার রক্তদানের আগে আপনার রক্তচাপ (BP), পালস, হিমোগ্লোবিন এবং হেপাটাইটিস বি, সি, ম্যালেরিয়া ও সিফিলিসের মতো রোগের ফ্রি স্ক্রিনিং হয়ে যায়।",
-    badge: "Free Checkup",
+  emerald: {
+    id: 'emerald',
+    name: 'Emerald Care',
+    bg: 'bg-emerald-50/90',
+    card: 'bg-white/90 border-emerald-200/80 shadow-[0_10px_25px_-5px_rgba(5,150,105,0.15),0_4px_0_0_rgba(5,150,105,0.2)]',
+    btn3d: 'bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-[0_6px_0_0_#065f46,0_12px_20px_rgba(5,150,105,0.35)] active:shadow-[0_2px_0_0_#065f46] active:translate-y-1',
+    accentText: 'text-emerald-600',
+    accentBg: 'bg-emerald-600',
+    badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    watermark: '#059669',
+    textMain: 'text-slate-800',
+    textSub: 'text-slate-500',
+    navBg: 'bg-white/95 border-emerald-200 shadow-[0_-10px_30px_rgba(5,150,105,0.12)]'
   },
-  {
-    titleBn: "ক্যালোরি বার্ন ও ওজন নিয়ন্ত্রণ",
-    titleEn: "Burns Calories & Supports Weight Balance",
-    desc: "এক ব্যাগ রক্তদান করলে শরীরের স্বাভাবিক প্রক্রিয়ায় প্রায় ৬০০ থেকে ৬৫০ ক্যালোরি পর্যন্ত শক্তি খরচ হয়, যা শরীরের বিপাক ক্রিয়া সচল রাখে।",
-    badge: "~650 kcal Burn",
+  ocean: {
+    id: 'ocean',
+    name: 'Royal Ocean',
+    bg: 'bg-sky-50/90',
+    card: 'bg-white/90 border-sky-200/80 shadow-[0_10px_25px_-5px_rgba(2,132,199,0.15),0_4px_0_0_rgba(2,132,199,0.2)]',
+    btn3d: 'bg-gradient-to-b from-sky-500 to-blue-600 text-white shadow-[0_6px_0_0_#075985,0_12px_20px_rgba(2,132,199,0.35)] active:shadow-[0_2px_0_0_#075985] active:translate-y-1',
+    accentText: 'text-sky-600',
+    accentBg: 'bg-sky-600',
+    badge: 'bg-sky-100 text-sky-700 border-sky-200',
+    watermark: '#0284c7',
+    textMain: 'text-slate-800',
+    textSub: 'text-slate-500',
+    navBg: 'bg-white/95 border-sky-200 shadow-[0_-10px_30px_rgba(2,132,199,0.12)]'
   },
-  {
-    titleBn: "একটি জীবন ও একটি পরিবার বাঁচানোর প্রশান্তি",
-    titleEn: "Save Up to 3 Lives with One Donation",
-    desc: "আপনার দেওয়া এক ব্যাগ রক্ত থেকে লোহিত কণিকা, প্লাজমা ও প্লেটলেট আলাদা করে সর্বোচ্চ ৩ জন মুমূর্ষু রোগীর প্রাণ বাঁচানো সম্ভব।",
-    badge: "3 Lives Saved",
-  },
-];
-
-// Leaflet Marker Icon Fix
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
-
-// Custom SVG Logo
-function RedPulseLogo({ size = 36 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 512 512" className="shrink-0 drop-shadow">
-      <defs>
-        <linearGradient id="rpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="100%" stopColor="#fee2e2" />
-        </linearGradient>
-      </defs>
-      <circle cx="256" cy="256" r="240" fill="rgba(255,255,255,0.18)" />
-      <path
-        d="M256 80 C256 80 140 218 140 302 C140 366 192 418 256 418 C320 418 372 366 372 302 C372 218 256 80 256 80 Z"
-        fill="url(#rpGrad)"
-      />
-      <path
-        d="M175 302 L215 302 L232 260 L258 346 L278 282 L295 302 L337 302"
-        fill="none"
-        stroke="#dc2626"
-        strokeWidth="16"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-// Haversine Distance (km)
-function getDistanceKm(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-}
-
-// 120-Day Smart Cooldown Check
-function getRemainingDays(lastDate) {
-  if (!lastDate) return 0;
-  const diffDays = Math.floor((new Date() - new Date(lastDate)) / (1000 * 60 * 60 * 24));
-  return diffDays >= COOLDOWN_DAYS ? 0 : COOLDOWN_DAYS - diffDays;
-}
-
-// Calculate Age from Date of Birth
-function calculateAge(dobString) {
-  if (!dobString) return null;
-  const birthDate = new Date(dobString);
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
+  sunset: {
+    id: 'sunset',
+    name: 'Sunset Amber',
+    bg: 'bg-amber-50/90',
+    card: 'bg-white/90 border-amber-200/80 shadow-[0_10px_25px_-5px_rgba(217,119,6,0.15),0_4px_0_0_rgba(217,119,6,0.2)]',
+    btn3d: 'bg-gradient-to-b from-amber-500 to-orange-600 text-white shadow-[0_6px_0_0_#92400e,0_12px_20px_rgba(217,119,6,0.35)] active:shadow-[0_2px_0_0_#92400e] active:translate-y-1',
+    accentText: 'text-amber-600',
+    accentBg: 'bg-amber-600',
+    badge: 'bg-amber-100 text-amber-700 border-amber-200',
+    watermark: '#d97706',
+    textMain: 'text-slate-800',
+    textSub: 'text-slate-500',
+    navBg: 'bg-white/95 border-amber-200 shadow-[0_-10px_30px_rgba(217,119,6,0.12)]'
   }
-  return age;
-}
+};
 
-// Auto-Detect Donor Readiness from Profile Details (Weight, Age, Hemoglobin, Medication, 120-Day Cooldown)
-function evaluateDonorReadiness(user) {
-  if (!user) return { ready: false, reason: "Profile incomplete" };
-  const remDays = getRemainingDays(user.lastDonation);
-  if (remDays > 0) {
-    return { ready: false, reason: `আরও ${remDays} দিন বিরতি বাকি (${COOLDOWN_DAYS}-day rule)` };
-  }
-  const age = calculateAge(user.dob);
-  if (age !== null && (age < 18 || age > 60)) {
-    return { ready: false, reason: `বয়স ১৮-৬০ বছরের মধ্যে হতে হবে (বর্তমান: ${age})` };
-  }
-  const weight = Number(user.weight);
-  if (user.weight && weight < 50) {
-    return { ready: false, reason: `ওজন কমপক্ষে ৫০ কেজি হতে হবে (${weight} kg)` };
-  }
-  if (user.hemoglobin === "Low") {
-    return { ready: false, reason: "হিমোগ্লোবিন মাত্রা কম (Low)" };
-  }
-  if (user.onMedication === "Yes") {
-    return { ready: false, reason: "বর্তমানে ওষুধ / অ্যান্টিবায়োটিক চলছে" };
-  }
-  return { ready: true, reason: "রক্তদানের জন্য সম্পূর্ণ প্রস্তুত" };
-}
+// ============================================================================
+// ৩. হেল্পার ফাংশন (১২০ দিনের কুলডাউন ও স্মার্ট রেডিনেস লজিক)
+// ============================================================================
+function calculateDonorReadiness(donor) {
+  if (!donor) return { isReady: true, daysRemaining: 0, reason: 'রক্তদানের জন্য প্রস্তুত' };
+  if (donor.isBanned) return { isReady: false, daysRemaining: 999, reason: 'অ্যাকাউন্ট স্থগিত' };
 
-function MapRecenter({ center }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, map.getZoom());
-  }, [center, map]);
-  return null;
-}
-
-function LocationPicker({ setHospitalPos }) {
-  useMapEvents({
-    click(e) {
-      setHospitalPos([e.latlng.lat, e.latlng.lng]);
-    },
-  });
-  return null;
-}
-
-export default function App() {
-  // Multi-Theme State (5 Themes)
-  const [themeKey, setThemeKey] = useState(() => localStorage.getItem("redpulse_theme") || "crimson");
-  const currentTheme = APP_THEMES[themeKey] || APP_THEMES.crimson;
-  const darkMode = currentTheme.isDark;
-
-  useEffect(() => {
-    localStorage.setItem("redpulse_theme", themeKey);
-  }, [themeKey]);
-
-  // Auth State ('login' | 'register' | 'forgot')
-  const [currentUser, setCurrentUser] = useState(() =>
-    JSON.parse(localStorage.getItem("redpulse_user") || "null")
-  );
-  const [authMode, setAuthMode] = useState("login");
-  const [authLoading, setAuthLoading] = useState(false);
-
-  // Registration / Login / Reset Form Inputs
-  const [phoneInput, setPhoneInput] = useState("");
-  const [emailInput, setEmailInput] = useState("");
-  const [passwordInput, setPasswordInput] = useState("");
-  const [newPasswordInput, setNewPasswordInput] = useState("");
-  const [nameInput, setNameInput] = useState("");
-  const [genderInput, setGenderInput] = useState("Male");
-  const [dobInput, setDobInput] = useState("");
-  const [weightInput, setWeightInput] = useState("58");
-  const [hemoglobinInput, setHemoglobinInput] = useState("Normal");
-  const [medicationInput, setMedicationInput] = useState("No");
-  const [bloodInput, setBloodInput] = useState("O+");
-  const [addressInput, setAddressInput] = useState("");
-  const [lastDonationInput, setLastDonationInput] = useState("");
-
-  // Navigation & UI Visibility States
-  const [activeTab, setActiveTab] = useState("radar");
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showThemePicker, setShowThemePicker] = useState(false);
-  const [showExtraFormFields, setShowExtraFormFields] = useState(false);
-  const [showLocationMap, setShowLocationMap] = useState(false);
-  const [showLiveTrackingMap, setShowLiveTrackingMap] = useState(false);
-  const [userPos, setUserPos] = useState([23.8583, 90.2667]);
-
-  // Radar & Non-Stop Siren Alarm State
-  const [isStandby, setIsStandby] = useState(false);
-  const [incomingAlert, setIncomingAlert] = useState(null);
-  const [isTestAlert, setIsTestAlert] = useState(false);
-  const [activeMission, setActiveMission] = useState(null);
-  const [onlineDonorsList, setOnlineDonorsList] = useState([]);
-  const [nationwideMatchingReqs, setNationwideMatchingReqs] = useState([]);
-  const [showNotifDrawer, setShowNotifDrawer] = useState(false);
-
-  const audioCtxRef = useRef(null);
-  const alarmIntervalRef = useRef(null);
-  const isAlarmPlayingRef = useRef(false);
-  const wakeLockRef = useRef(null);
-
-  // Seeker Request State
-  const [requestType, setRequestType] = useState("emergency");
-  const [neededBlood, setNeededBlood] = useState("O-");
-  const [bagsNeeded, setBagsNeeded] = useState("1 Bag");
-  const [urgencyReason, setUrgencyReason] = useState("Emergency Surgery");
-  const [hospitalName, setHospitalName] = useState("");
-  const [districtName, setDistrictName] = useState("");
-  const [transportSupport, setTransportSupport] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState("");
-  const [scheduledTime, setScheduledTime] = useState("10:00");
-  const [scheduledList, setScheduledList] = useState([]);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchingMap, setIsSearchingMap] = useState(false);
-  const [hospitalPos, setHospitalPos] = useState([23.8583, 90.2667]);
-  const [activeRequestId, setActiveRequestId] = useState(
-    localStorage.getItem("redpulse_active_req") || null
-  );
-  const [liveRequestData, setLiveRequestData] = useState(null);
-
-  // Direct Chat & Real-Time Notification State
-  const [chatRoomId, setChatRoomId] = useState(null);
-  const [chatPartnerPhone, setChatPartnerPhone] = useState("");
-  const [chatPartnerName, setChatPartnerName] = useState("");
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatAlertBanner, setChatAlertBanner] = useState(null);
-  const [unreadChatCount, setUnreadChatCount] = useState(0);
-  const lastSeenNotifIdRef = useRef(null);
-
-  // Approved Phone Access List (Admin Approval-Based Phone Unlock)
-  const [approvedContactsList, setApprovedContactsList] = useState([]);
-
-  // User Reviews State (Admin Moderated)
-  const [allReviews, setAllReviews] = useState([]);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewText, setReviewText] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
-
-  // Rating & Digital Certificate
-  const [ratingModalDonor, setRatingModalDonor] = useState(null);
-  const [selectedStars, setSelectedStars] = useState(5);
-  const [showCertificate, setShowCertificate] = useState(false);
-
-  // Directory & Banks Data
-  const [allUsers, setAllUsers] = useState([]);
-  const [filterBlood, setFilterBlood] = useState("ALL");
-  const [filterGender, setFilterGender] = useState("ALL");
-  const [filterArea, setFilterArea] = useState("");
-  const [bankSearch, setBankSearch] = useState("");
-  const [loadingUsers, setLoadingUsers] = useState(false);
-
-  // Interactive Eligibility Quiz State (3-Dot Menu Section)
-  const [quizAge, setQuizAge] = useState("");
-  const [quizWeight, setQuizWeight] = useState("");
-  const [quizDays, setQuizDays] = useState("125");
-  const [quizHemo, setQuizHemo] = useState("Normal");
-  const [quizMed, setQuizMed] = useState("No");
-  const [quizResult, setQuizResult] = useState(null);
-
-  // Profile Edit, Password Change, SOS Medical Card & Verification
-  const [editMode, setEditMode] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editGender, setEditGender] = useState("Male");
-  const [editEmail, setEditEmail] = useState("");
-  const [editDob, setEditDob] = useState("");
-  const [editWeight, setEditWeight] = useState("58");
-  const [editHemoglobin, setEditHemoglobin] = useState("Normal");
-  const [editMedication, setEditMedication] = useState("No");
-  const [editBlood, setEditBlood] = useState("");
-  const [editAddress, setEditAddress] = useState("");
-  const [editLastDonation, setEditLastDonation] = useState("");
-  const [editEmergencyContact, setEditEmergencyContact] = useState("");
-  const [editAllergies, setEditAllergies] = useState("");
-  const [nidInput, setNidInput] = useState("");
-
-  // In-Profile Password Change State
-  const [showChangePass, setShowChangePass] = useState(false);
-  const [oldPassInput, setOldPassInput] = useState("");
-  const [profileNewPassInput, setProfileNewPassInput] = useState("");
-
-  // Admin Panel & Surveillance State
-  const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [pinEntry, setPinEntry] = useState("");
-  const [adminEditUser, setAdminEditUser] = useState(null);
-  const [adminResetPassUser, setAdminResetPassUser] = useState(null);
-  const [adminNewPassVal, setAdminNewPassVal] = useState("");
-  const [liveAllRequests, setLiveAllRequests] = useState([]);
-  const [allChatsMonitor, setAllChatsMonitor] = useState([]);
-  const [contactRequestsMonitor, setContactRequestsMonitor] = useState([]);
-
-  // Check if currentUser has Admin Approval to view/call targetPhone
-  const canViewPhone = (targetPhone) => {
-    if (!currentUser || !targetPhone) return false;
-    if (currentUser.isAdmin) return true;
-    if (targetPhone === currentUser.phone) return true;
-    return approvedContactsList.some(
-      (req) =>
-        req.status === "approved" &&
-        ((req.requesterPhone === currentUser.phone && req.targetPhone === targetPhone) ||
-          (req.targetPhone === currentUser.phone && req.requesterPhone === targetPhone))
-    );
-  };
-
-  // Check if a Contact Request is already pending
-  const isContactPending = (targetPhone) => {
-    if (!currentUser || !targetPhone) return false;
-    return approvedContactsList.some(
-      (req) =>
-        req.status === "pending" &&
-        req.requesterPhone === currentUser.phone &&
-        req.targetPhone === targetPhone
-    );
-  };
-
-  // Format Phone Display Based on Admin Approval
-  const formatPhoneDisplay = (targetPhone) => {
-    if (!targetPhone) return "Hidden";
-    if (canViewPhone(targetPhone)) return targetPhone;
-    return "01***-***" + targetPhone.slice(-2) + " (Admin Approval Required)";
-  };
-
-  // Unlock Browser Audio Engine
-  const unlockAudioEngine = () => {
-    try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!audioCtxRef.current && AudioContextClass) {
-        audioCtxRef.current = new AudioContextClass();
+  let daysRemaining = 0;
+  if (donor.lastDonationDate) {
+    const last = new Date(donor.lastDonationDate);
+    if (!isNaN(last.getTime())) {
+      const diffTime = Date.now() - last.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays < COOLDOWN_DAYS) {
+        daysRemaining = COOLDOWN_DAYS - diffDays;
       }
-      if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
-        audioCtxRef.current.resume();
-      }
-    } catch (e) {}
-  };
+    }
+  }
 
-  // Gentle Chat Message Notification Chime
-  const playChatChime = () => {
-    try {
-      unlockAudioEngine();
-      const ctx = audioCtxRef.current;
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
+  const ageOk = !donor.age || (Number(donor.age) >= 18 && Number(donor.age) <= 60);
+  const weightOk = !donor.weight || Number(donor.weight) >= 50;
+  const hbOk = !donor.hemoglobin || Number(donor.hemoglobin) >= 12.5;
+  const medOk = !donor.onMedication;
+
+  if (daysRemaining > 0) {
+    return { isReady: false, daysRemaining, reason: `আরও ${daysRemaining} দিন পর রক্ত দিতে পারবেন` };
+  }
+  if (!ageOk) return { isReady: false, daysRemaining: 0, reason: 'বয়স ১৮-৬০ বছরের মধ্যে হতে হবে' };
+  if (!weightOk) return { isReady: false, daysRemaining: 0, reason: 'ওজন কমপক্ষে ৫০ কেজি হতে হবে' };
+  if (!hbOk) return { isReady: false, daysRemaining: 0, reason: 'হিমোগ্লোবিন ১২.৫+ হতে হবে' };
+  if (!medOk) return { isReady: false, daysRemaining: 0, reason: 'বর্তমানে ওষুধ সেবন করছেন' };
+
+  return { isReady: true, daysRemaining: 0, reason: 'রক্তদানের জন্য সম্পূর্ণ প্রস্তুত' };
+}
+
+// ============================================================================
+// ৪. ওয়েব অডিও সিন্থেসাইজার (চাইম ও ইমার্জেন্সি অ্যালার্ম সাউন্ড)
+// ============================================================================
+function playSoundEffect(type = 'chime') {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'alarm') {
+      osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1174, ctx.currentTime + 0.14);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35);
+      osc.frequency.exponentialRampToValueAtTime(980, ctx.currentTime + 0.7);
       gain.gain.setValueAtTime(0.35, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.26);
-      if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
-    } catch (e) {}
-  };
-
-  // NON-STOP Dual-Tone Emergency Siren & Vibration
-  const startAlarmSound = () => {
-    unlockAudioEngine();
-    if (isAlarmPlayingRef.current) return;
-    isAlarmPlayingRef.current = true;
-
-    let highTone = true;
-    const triggerPulse = () => {
-      if (!isAlarmPlayingRef.current) return;
-      try {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!audioCtxRef.current && AudioContextClass) {
-          audioCtxRef.current = new AudioContextClass();
-        }
-        const ctx = audioCtxRef.current;
-        if (ctx.state === "suspended") ctx.resume();
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(highTone ? 960 : 660, ctx.currentTime);
-        highTone = !highTone;
-
-        gain.gain.setValueAtTime(0.75, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.42);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.43);
-
-        if (navigator.vibrate) {
-          navigator.vibrate([400, 120]);
-        }
-      } catch (e) {}
-    };
-
-    triggerPulse();
-    alarmIntervalRef.current = setInterval(triggerPulse, 480);
-  };
-
-  const stopAlarmSound = () => {
-    isAlarmPlayingRef.current = false;
-    if (alarmIntervalRef.current) {
-      clearInterval(alarmIntervalRef.current);
-      alarmIntervalRef.current = null;
-    }
-    if (navigator.vibrate) {
-      navigator.vibrate(0);
-    }
-  };
-
-  useEffect(() => {
-    return () => stopAlarmSound();
-  }, []);
-
-  // Test Siren Alarm Function
-  const handleTestAlarm = () => {
-    setShowMoreMenu(false);
-    unlockAudioEngine();
-    setIsTestAlert(true);
-    setIncomingAlert({
-      id: "test_alert",
-      bloodGroup: currentUser.bloodGroup,
-      bagsNeeded: "1 Bag (Test)",
-      urgencyReason: "Testing Non-Stop Siren Sound",
-      hospitalName: "Test Medical Hospital, Bangladesh",
-      transportSupport: true,
-      seekerName: "RedPulse System Test",
-      seekerPhone: currentUser.phone,
-      distance: "1.2",
-    });
-    startAlarmSound();
-  };
-
-  // Get User GPS Location
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const coords = [pos.coords.latitude, pos.coords.longitude];
-          setUserPos(coords);
-          if (!activeRequestId) setHospitalPos(coords);
-        },
-        () => {}
-      );
-    }
-  }, [activeRequestId]);
-
-  // Donor Online Radar Presence & Wake Lock
-  useEffect(() => {
-    if (!currentUser) return;
-    const presenceRef = ref(rtdb, `online_donors/${currentUser.phone}`);
-    const readiness = evaluateDonorReadiness(currentUser);
-
-    if (isStandby && readiness.ready && !currentUser.banned) {
-      unlockAudioEngine();
-      set(presenceRef, {
-        name: currentUser.name,
-        gender: currentUser.gender || "Male",
-        bloodGroup: currentUser.bloodGroup,
-        address: currentUser.address || "Bangladesh",
-        lat: userPos[0],
-        lng: userPos[1],
-        updatedAt: Date.now(),
-      });
-      if ("wakeLock" in navigator) {
-        navigator.wakeLock
-          .request("screen")
-          .then((wl) => {
-            wakeLockRef.current = wl;
-          })
-          .catch(() => {});
-      }
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.9);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.9);
     } else {
-      remove(presenceRef);
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().catch(() => {});
-        wakeLockRef.current = null;
-      }
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(660, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(990, ctx.currentTime + 0.25);
+      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
     }
+  } catch (e) {
+    // অডিও ব্লক থাকলে ইগনোর করবে
+  }
+}
 
-    return () => {
-      remove(presenceRef);
-    };
-  }, [isStandby, currentUser, userPos]);
+// ============================================================================
+// ৫. 3D ব্লাড ড্রপ ওয়াটারমার্ক কম্পোনেন্ট (প্রতিটি পেজের ব্যাকগ্রাউন্ডে)
+// ============================================================================
+function BloodDropWatermark({ color }) {
+  return (
+    <div className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0 select-none">
+      <svg
+        viewBox="0 0 200 260"
+        className="w-[340px] h-[440px] opacity-[0.07] transition-all duration-700 transform -rotate-6"
+      >
+        <defs>
+          <radialGradient id="drop3d" cx="35%" cy="30%" r="65%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+            <stop offset="45%" stopColor={color} stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.9" />
+          </radialGradient>
+        </defs>
+        <path
+          d="M100 12 C100 12 20 112 20 172 C20 216 56 250 100 250 C144 250 180 216 180 172 C180 112 100 12 100 12 Z"
+          fill="url(#drop3d)"
+        />
+        <ellipse cx="70" cy="145" rx="12" ry="26" transform="rotate(-20 70 145)" fill="#ffffff" opacity="0.45" />
+      </svg>
+    </div>
+  );
+}
 
-  // Listen to Online Donors
+// ============================================================================
+// ৬. মেইন অ্যাপ্লিকেশন কম্পোনেন্ট
+// ============================================================================
+export default function App() {
+  // থিম স্টেট
+  const [themeKey, setThemeKey] = useState(() => localStorage.getItem('rp_theme') || 'crimson');
+  const theme = THEMES[themeKey] || THEMES.crimson;
+
+  // অথেনটিকেশন ও ইউজার স্টেট
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('rp_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
+  const [authForm, setAuthForm] = useState({ name: '', phone: '', bloodGroup: 'O+', pin: '' });
+  const [authError, setAuthError] = useState('');
+
+  // মাস্টার অ্যাডমিন ক্রেডেনশিয়াল ও ডেভেলপার ইনফো (Firebase থেকে সিঙ্ক হবে)
+  const [masterConfig, setMasterConfig] = useState({
+    phone: '01345365867',
+    pin: '7596',
+    recoveryEmail: 'rejwan239@gmail.com',
+    devName: 'Mohammad Rejwan Islam',
+    devRole: 'Founder & Lead Developer',
+    devBio: 'জরুরি মুহূর্তে প্রযুক্তির মাধ্যমে রক্তদাতা ও রোগীর সেতুবন্ধন গড়ার লক্ষ্যে নির্মিত।',
+    devContact: '01345365867'
+  });
+
+  // কালেকশন ডেটা স্টেট
+  const [users, setUsers] = useState([]);
+  const [bloodRequests, setBloodRequests] = useState([]);
+  const [contactRequests, setContactRequests] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [bloodBanks, setBloodBanks] = useState([]);
+  const [ambulances, setAmbulances] = useState([]);
+  const [ratings, setRatings] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+
+  // নেভিগেশন ও মডাল স্টেট
+  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'redpulse' | 'profile' | 'admin' | 'data_entry' | 'bank_portal'
+  const [redpulseSubView, setRedpulseSubView] = useState(null); // null | 'all_donors' | 'available_donors' | 'top_heroes' | 'blood_banks' | 'certificate' | 'ambulance' | 'quiz' | 'rate' | 'about'
+  const [adminSubTab, setAdminSubTab] = useState('radar'); // 'radar' | 'messages' | 'donors' | 'create' | 'data_entry' | 'security'
+
+  // পপ-আপ ও ইন্টারেকশন স্টেট
+  const [selectedDonorModal, setSelectedDonorModal] = useState(null);
+  const [editingDonorModal, setEditingDonorModal] = useState(null);
+  const [selectedBankModal, setSelectedBankModal] = useState(null);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showNotifDrawer, setShowNotifDrawer] = useState(false);
+  const [activeAlarmAlert, setActiveAlarmAlert] = useState(null);
+  const [trackingRequestModal, setTrackingRequestModal] = useState(null);
+
+  // সার্চ ও ফিল্টার স্টেট
+  const [donorSearch, setDonorSearch] = useState('');
+  const [bloodGroupFilter, setBloodGroupFilter] = useState('ALL');
+  const [bankSearch, setBankSearch] = useState('');
+
+  // রিকোয়েস্ট ফর্ম
+  const [reqForm, setReqForm] = useState({
+    patientName: '',
+    bloodGroup: 'O+',
+    bags: 1,
+    hospital: '',
+    contactPhone: '',
+    urgency: 'Emergency'
+  });
+
+  // লাইভ চ্যাট স্টেট
+  const [chatReceiver, setChatReceiver] = useState(null);
+  const [chatText, setChatText] = useState('');
+
+  // ম্যানুয়াল ডেটা এন্ট্রি ফর্ম
+  const [manualDonorForm, setManualDonorForm] = useState({
+    name: '',
+    phone: '',
+    bloodGroup: 'A+',
+    location: '',
+    lastDonationDate: ''
+  });
+
+  // ক্রিয়েশন ফর্ম ও Email OTP ভেরিফিকেশন স্টেট
+  const [createAccountType, setCreateAccountType] = useState('admin'); // 'admin' | 'data_entry' | 'blood_bank'
+  const [newAccForm, setNewAccForm] = useState({
+    name: '',
+    phone: '',
+    bloodGroup: 'O+',
+    pin: '',
+    address: '',
+    location: ''
+  });
+  const [otpState, setOtpState] = useState({
+    step: 'idle', // 'idle' | 'sent'
+    generatedCode: '',
+    inputCode: '',
+    purpose: '' // 'create_account' | 'update_master'
+  });
+
+  // সিকিউরিটি ও ডেভেলপার এডিট ফর্ম
+  const [secForm, setSecForm] = useState({
+    phone: '',
+    pin: '',
+    recoveryEmail: ''
+  });
+  const [devEditForm, setDevEditForm] = useState({
+    devName: '',
+    devRole: '',
+    devBio: '',
+    devContact: ''
+  });
+
+  // অ্যাম্বুলেন্স যোগ করার ফর্ম (অ্যাডমিনের জন্য)
+  const [newAmbForm, setNewAmbForm] = useState({ name: '', area: '', phone: '' });
+
+  // ফিজিক্যাল কন্ডিশন কুইজ ও রেটিং স্টেট
+  const [quizAnswers, setQuizAnswers] = useState({ age18: true, weight50: true, noMed: true, days120: true });
+  const [userRating, setUserRating] = useState({ stars: 5, comment: '' });
+
+  // GPS ওয়াচার রেফারেন্স (শুধুমাত্র রিকোয়েস্ট Accept করলে চালু হবে)
+  const geoWatchRef = useRef(null);
+
+  // ==========================================================================
+  // ৭. সার্ভিস ওয়ার্কার রেজিস্ট্রেশন ও নোটিফিকেশন পারমিশন (অ্যাপ ক্লোজ থাকলেও অ্যালার্ট)
+  // ==========================================================================
   useEffect(() => {
-    const onlineRef = ref(rtdb, "online_donors");
-    return onValue(onlineRef, (snap) => {
-      const data = snap.val();
-      if (!data) {
-        setOnlineDonorsList([]);
-      } else {
-        setOnlineDonorsList(Object.entries(data).map(([phone, val]) => ({ phone, ...val })));
-      }
-    });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
   }, []);
 
-  // Listen to Contact / Phone Number Access Requests
-  useEffect(() => {
-    if (!currentUser) return;
-    const callRef = ref(rtdb, "call_requests");
-    return onValue(callRef, (snap) => {
-      const data = snap.val();
-      if (!data) {
-        setApprovedContactsList([]);
-        setContactRequestsMonitor([]);
-      } else {
-        const list = Object.entries(data)
-          .map(([id, val]) => ({ id, ...val }))
-          .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        setApprovedContactsList(list);
-        setContactRequestsMonitor(list);
-      }
-    });
-  }, [currentUser]);
-
-  // Scheduled Requests Listener
-  useEffect(() => {
-    const schedRef = ref(rtdb, "scheduled_requests");
-    return onValue(schedRef, (snap) => {
-      const data = snap.val();
-      if (!data) setScheduledList([]);
-      else {
-        const list = Object.entries(data)
-          .map(([id, val]) => ({ id, ...val }))
-          .sort((a, b) => b.createdAt - a.createdAt);
-        setScheduledList(list);
-      }
-    });
-  }, []);
-
-  // Real-Time Incoming Chat Notification Listener
-  useEffect(() => {
-    if (!currentUser) return;
-    const notifRef = ref(rtdb, `chat_notifications/${currentUser.phone}`);
-    return onValue(notifRef, (snap) => {
-      const data = snap.val();
-      if (!data) {
-        setUnreadChatCount(0);
-        return;
-      }
-      const list = Object.entries(data)
-        .map(([id, val]) => ({ id, ...val }))
-        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-      setUnreadChatCount(list.length);
-      const latest = list[0];
-      if (latest && latest.id !== lastSeenNotifIdRef.current) {
-        lastSeenNotifIdRef.current = latest.id;
-        if (chatRoomId !== latest.roomId) {
-          playChatChime();
-          setChatAlertBanner(latest);
-        }
-      }
-    });
-  }, [currentUser, chatRoomId]);
-
-  // Fetch User Reviews
-  const fetchReviews = async () => {
-    try {
-      const snap = await getDocs(collection(db, "user_reviews"));
-      const list = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      setAllReviews(list);
-    } catch (e) {}
-  };
-
-  // Fetch All Registered Users
-  const fetchAllUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const snap = await getDocs(collection(db, "users"));
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setAllUsers(list);
-      if (currentUser) {
-        const me = list.find((u) => u.phone === currentUser.phone);
-        if (me) {
-          if (me.banned) {
-            alert("Your account has been suspended by Admin.");
-            handleLogout();
-            return;
-          }
-          const updatedMe = {
-            ...me,
-            isAdmin: me.phone === MASTER_ADMIN_PHONE || me.role === "admin",
-          };
-          setCurrentUser(updatedMe);
-          localStorage.setItem("redpulse_user", JSON.stringify(updatedMe));
-        }
-      }
-    } catch (e) {}
-    setLoadingUsers(false);
-  };
-
-  useEffect(() => {
-    if (currentUser) {
-      fetchAllUsers();
-      fetchReviews();
-    }
-  }, [activeTab]);
-
-  // Valid BD Phone Check
-  const isValidBDPhone = (num) => /^01[3-9]\d{8}$/.test(num.trim());
-
-  // Registration Handler (With Readiness Details: Weight, Hemoglobin, Medication)
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    if (!isValidBDPhone(phoneInput)) {
-      alert("Please enter a valid 11-digit mobile number (সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন)।");
-      return;
-    }
-    if (!emailInput.includes("@")) {
-      alert("Please enter a valid email address (সঠিক ইমেইল ঠিকানা দিন)।");
-      return;
-    }
-    if (passwordInput.length < 4) {
-      alert("Password must be at least 4 characters long (পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে)।");
-      return;
-    }
-
-    setAuthLoading(true);
-    try {
-      const q = query(collection(db, "users"), where("phone", "==", phoneInput.trim()));
-      const existing = await getDocs(q);
-      if (!existing.empty) {
-        alert("This phone number is already registered! Please log in.");
-        setAuthMode("login");
-        setAuthLoading(false);
-        return;
-      }
-
-      const isOwner = phoneInput.trim() === MASTER_ADMIN_PHONE;
-      const newUser = {
-        name: nameInput.trim(),
-        gender: genderInput,
-        phone: phoneInput.trim(),
-        email: emailInput.trim().toLowerCase(),
-        dob: dobInput || "",
-        weight: Number(weightInput) || 55,
-        hemoglobin: hemoglobinInput,
-        onMedication: medicationInput,
-        password: passwordInput,
-        bloodGroup: bloodInput,
-        address: addressInput.trim(),
-        lastDonation: lastDonationInput || "",
-        donationCount: 0,
-        donationHistory: [],
-        emergencyContact: "",
-        allergies: "None",
-        verified: isOwner,
-        banned: false,
-        nidInfo: isOwner ? "Master Owner" : "",
-        photoUrl: "",
-        ratingSum: 0,
-        ratingCount: 0,
-        reports: 0,
-        role: isOwner ? "admin" : "user",
-        createdAt: Date.now(),
-      };
-
-      const docRef = await addDoc(collection(db, "users"), newUser);
-      const userWithId = { id: docRef.id, ...newUser, isAdmin: isOwner };
-      setCurrentUser(userWithId);
-      localStorage.setItem("redpulse_user", JSON.stringify(userWithId));
-    } catch (err) {
-      alert("Registration failed. Please check your internet connection.");
-    }
-    setAuthLoading(false);
-  };
-
-  // Login Handler
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setAuthLoading(true);
-    try {
-      const q = query(
-        collection(db, "users"),
-        where("phone", "==", phoneInput.trim()),
-        where("password", "==", passwordInput)
-      );
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        alert("Invalid phone number or password! (ফোন নম্বর বা পাসওয়ার্ড ভুল হয়েছে)");
-      } else {
-        const d = snap.docs[0];
-        const data = d.data();
-        if (data.banned) {
-          alert("This account is banned by Admin. Contact support.");
-          setAuthLoading(false);
-          return;
-        }
-        const isOwner = data.phone === MASTER_ADMIN_PHONE || data.role === "admin";
-        const userObj = { id: d.id, ...data, isAdmin: isOwner };
-        setCurrentUser(userObj);
-        localStorage.setItem("redpulse_user", JSON.stringify(userObj));
-      }
-    } catch (err) {
-      alert("Login failed. Please try again.");
-    }
-    setAuthLoading(false);
-  };
-
-  // Forget Password Handler (Login Screen)
-  const handleForgetPassword = async (e) => {
-    e.preventDefault();
-    if (newPasswordInput.length < 4) {
-      alert("New password must be at least 4 characters long.");
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      const q = query(collection(db, "users"), where("phone", "==", phoneInput.trim()));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        alert("No account found with this phone number!");
-      } else {
-        const userDoc = snap.docs[0];
-        const uData = userDoc.data();
-        if (uData.email && uData.email.toLowerCase() === emailInput.trim().toLowerCase()) {
-          await updateDoc(doc(db, "users", userDoc.id), {
-            password: newPasswordInput,
+  const triggerSystemNotification = (title, body, isAlarm = false) => {
+    playSoundEffect(isAlarm ? 'alarm' : 'chime');
+    if ('Notification' in window && Notification.permission === 'granted') {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.showNotification(title, {
+            body,
+            icon: 'https://cdn-icons-png.flaticon.com/512/1060/1060648.png',
+            vibrate: isAlarm ? [500, 200, 500, 200, 800] : [200, 100, 200],
+            requireInteraction: isAlarm
           });
-          alert("Password reset successful! Please log in with your new password.");
-          setPasswordInput("");
-          setNewPasswordInput("");
-          setAuthMode("login");
-        } else {
-          alert("The email address does not match this phone number!");
-        }
-      }
-    } catch (err) {
-      alert("Could not reset password. Try again.");
-    }
-    setAuthLoading(false);
-  };
-
-  // Change Password Inside Profile
-  const handleProfilePasswordChange = async (e) => {
-    e.preventDefault();
-    if (oldPassInput !== currentUser.password) {
-      alert("Current password is incorrect! (বর্তমান পাসওয়ার্ড ভুল হয়েছে)");
-      return;
-    }
-    if (profileNewPassInput.length < 4) {
-      alert("New password must be at least 4 characters long.");
-      return;
-    }
-    await updateDoc(doc(db, "users", currentUser.id), {
-      password: profileNewPassInput,
-    });
-    const updated = { ...currentUser, password: profileNewPassInput };
-    setCurrentUser(updated);
-    localStorage.setItem("redpulse_user", JSON.stringify(updated));
-    setOldPassInput("");
-    setProfileNewPassInput("");
-    setShowChangePass(false);
-    alert("Password changed successfully! (পাসওয়ার্ড পরিবর্তন হয়েছে)");
-  };
-
-  // Upload Profile Photo
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = document.createElement("canvas");
-        const maxSize = 220;
-        let w = img.width;
-        let h = img.height;
-        if (w > h) {
-          if (w > maxSize) {
-            h *= maxSize / w;
-            w = maxSize;
-          }
-        } else {
-          if (h > maxSize) {
-            w *= maxSize / h;
-            h = maxSize;
-          }
-        }
-        canvas.width = w;
-        canvas.height = h;
-        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-        const compressedUrl = canvas.toDataURL("image/jpeg", 0.72);
-        await updateDoc(doc(db, "users", currentUser.id), { photoUrl: compressedUrl });
-        const updated = { ...currentUser, photoUrl: compressedUrl };
-        setCurrentUser(updated);
-        localStorage.setItem("redpulse_user", JSON.stringify(updated));
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Update Profile & Auto-Readiness Fields
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    const updates = {
-      name: editName,
-      gender: editGender,
-      email: editEmail.trim().toLowerCase(),
-      dob: editDob,
-      weight: Number(editWeight) || 55,
-      hemoglobin: editHemoglobin,
-      onMedication: editMedication,
-      bloodGroup: editBlood,
-      address: editAddress,
-      lastDonation: editLastDonation,
-      emergencyContact: editEmergencyContact.trim(),
-      allergies: editAllergies.trim() || "None",
-    };
-    await updateDoc(doc(db, "users", currentUser.id), updates);
-    const updated = { ...currentUser, ...updates };
-    setCurrentUser(updated);
-    localStorage.setItem("redpulse_user", JSON.stringify(updated));
-    setEditMode(false);
-    alert("Profile updated! Readiness status auto-detected.");
-  };
-
-  // NID/Student ID Verification
-  const handleRequestVerify = async () => {
-    if (!nidInput.trim()) return;
-    await updateDoc(doc(db, "users", currentUser.id), {
-      nidInfo: nidInput.trim(),
-      verified: true,
-    });
-    const updated = { ...currentUser, nidInfo: nidInput.trim(), verified: true };
-    setCurrentUser(updated);
-    localStorage.setItem("redpulse_user", JSON.stringify(updated));
-    alert("Congratulations! Verified Donor badge added.");
-  };
-
-  // Nationwide Matching Notification + Radar Siren Listener
-  useEffect(() => {
-    if (!currentUser) return;
-    const readiness = evaluateDonorReadiness(currentUser);
-
-    const reqRef = ref(rtdb, "emergency_requests");
-    const unsubscribe = onValue(reqRef, (snapshot) => {
-      const data = snapshot.val();
-      if (!data) {
-        setNationwideMatchingReqs([]);
-        if (!isTestAlert) {
-          setIncomingAlert(null);
-          stopAlarmSound();
-        }
-        return;
-      }
-
-      const matchingAllBD = [];
-      let foundRadarReq = null;
-
-      Object.entries(data).forEach(([key, req]) => {
-        if (
-          req.status === "searching" &&
-          req.bloodGroup === currentUser.bloodGroup &&
-          req.seekerPhone !== currentUser.phone
-        ) {
-          const dist = getDistanceKm(userPos[0], userPos[1], req.hospitalLat, req.hospitalLng);
-          matchingAllBD.push({ id: key, ...req, distance: dist.toFixed(1) });
-
-          const maxRadius = req.radiusKm || 5;
-          if (isStandby && readiness.ready && dist <= maxRadius) {
-            foundRadarReq = { id: key, ...req, distance: dist.toFixed(2) };
-          }
-        }
-
-        // Auto 120-day Lock, History Log & Digital Certificate upon Completion
-        if (activeMission && key === activeMission.id && req.status === "completed") {
-          const todayStr = new Date().toISOString().split("T")[0];
-          const newCount = (currentUser.donationCount || 0) + 1;
-          const prevHistory = Array.isArray(currentUser.donationHistory)
-            ? currentUser.donationHistory
-            : [];
-          const newHistory = [
-            {
-              date: todayStr,
-              hospital: activeMission.hospitalName,
-              seeker: activeMission.seekerName,
-              bloodGroup: activeMission.bloodGroup,
-            },
-            ...prevHistory,
-          ];
-
-          updateDoc(doc(db, "users", currentUser.id), {
-            lastDonation: todayStr,
-            donationCount: newCount,
-            donationHistory: newHistory,
-          });
-          const updated = {
-            ...currentUser,
-            lastDonation: todayStr,
-            donationCount: newCount,
-            donationHistory: newHistory,
-          };
-          setCurrentUser(updated);
-          localStorage.setItem("redpulse_user", JSON.stringify(updated));
-          setIsStandby(false);
-          setActiveMission(null);
-          setShowCertificate(true);
-          remove(ref(rtdb, `emergency_requests/${key}`));
-        }
-      });
-
-      setNationwideMatchingReqs(matchingAllBD.sort((a, b) => b.createdAt - a.createdAt));
-
-      if (foundRadarReq && !activeMission) {
-        setIsTestAlert(false);
-        setIncomingAlert(foundRadarReq);
-        startAlarmSound();
-      } else if (!isTestAlert) {
-        setIncomingAlert(null);
-        stopAlarmSound();
-      }
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [currentUser, isStandby, userPos, activeMission, isTestAlert]);
-
-  // Donor Accepts Request
-  const handleAcceptRequest = (reqObj = incomingAlert) => {
-    if (!reqObj) return;
-    stopAlarmSound();
-
-    if (isTestAlert) {
-      setIsTestAlert(false);
-      setIncomingAlert(null);
-      alert("Test successful! Real emergency calls will sound the siren just like this.");
-      return;
-    }
-
-    const readiness = evaluateDonorReadiness(currentUser);
-    if (!readiness.ready) {
-      alert(`You are currently Not Ready: ${readiness.reason}`);
-      return;
-    }
-
-    const reqRef = ref(rtdb, `emergency_requests/${reqObj.id}`);
-    update(reqRef, {
-      status: "accepted",
-      donorId: currentUser.id,
-      donorName: currentUser.name,
-      donorGender: currentUser.gender || "Male",
-      donorPhone: currentUser.phone,
-      donorVerified: currentUser.verified || false,
-      donorPhoto: currentUser.photoUrl || "",
-      donorStatusMsg: "On the way to hospital",
-      donorLat: userPos[0],
-      donorLng: userPos[1],
-    });
-
-    setActiveMission(reqObj);
-    setIncomingAlert(null);
-    setShowNotifDrawer(false);
-
-    navigator.geolocation.watchPosition((pos) => {
-      update(reqRef, {
-        donorLat: pos.coords.latitude,
-        donorLng: pos.coords.longitude,
-      });
-    });
-  };
-
-  // Send Quick Status
-  const sendQuickStatus = (msg) => {
-    if (!activeMission) return;
-    update(ref(rtdb, `emergency_requests/${activeMission.id}`), {
-      donorStatusMsg: msg,
-    });
-    alert(`Status sent: "${msg}"`);
-  };
-
-  // Request Admin Approval to Unlock Phone Number & Call
-  const handleRequestNumberUnlock = async (targetPhone, targetName) => {
-    if (isContactPending(targetPhone)) {
-      alert("Your request is already pending Admin approval. Please wait.");
-      return;
-    }
-    await push(ref(rtdb, "call_requests"), {
-      requesterPhone: currentUser.phone,
-      requesterName: currentUser.name,
-      targetPhone,
-      targetName,
-      status: "pending",
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      timestamp: Date.now(),
-    });
-    alert(
-      `Phone unlock request sent to Admin for ${targetName}! Once Admin approves, you will see the number and Call button directly. Meanwhile, you can use Live Chat anytime.`
-    );
-  };
-
-  // Search Hospital on Map
-  const handleSearchHospital = async () => {
-    if (!searchQuery.trim()) return;
-    setIsSearchingMap(true);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          searchQuery + ", Bangladesh"
-        )}`
-      );
-      const data = await res.json();
-      if (data && data.length > 0) {
-        setHospitalPos([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
-        if (!hospitalName) setHospitalName(data[0].display_name.split(",")[0]);
+        });
       } else {
-        alert("Hospital not found. Tap on the map to set pin.");
+        new Notification(title, { body });
       }
-    } catch (e) {}
-    setIsSearchingMap(false);
-  };
-
-  // Send Emergency or Scheduled Request
-  const handleSendRequest = async (e) => {
-    e.preventDefault();
-    const fullHospital = districtName.trim()
-      ? `${hospitalName} (${districtName.trim()})`
-      : hospitalName || "Selected Hospital";
-
-    if (requestType === "scheduled") {
-      if (!scheduledDate) {
-        alert("Please select a date (তারিখ নির্বাচন করুন)।");
-        return;
-      }
-      const schedId = "sched_" + Date.now();
-      await set(ref(rtdb, `scheduled_requests/${schedId}`), {
-        bloodGroup: neededBlood,
-        bagsNeeded,
-        urgencyReason,
-        hospitalName: fullHospital,
-        transportSupport,
-        scheduledDate,
-        scheduledTime,
-        seekerName: currentUser.name,
-        seekerPhone: currentUser.phone,
-        bookedBy: "",
-        bookedDonorPhone: "",
-        createdAt: Date.now(),
-      });
-      setHospitalName("");
-      setDistrictName("");
-      setScheduledDate("");
-      alert("Scheduled request posted! (শিডিউল অনুরোধ পোস্ট হয়েছে)");
-      return;
     }
-
-    const reqId = "req_" + Date.now();
-    const initialStatus = currentUser.isAdmin ? "searching" : "pending_admin";
-
-    await set(ref(rtdb, `emergency_requests/${reqId}`), {
-      bloodGroup: neededBlood,
-      bagsNeeded,
-      urgencyReason,
-      hospitalName: fullHospital,
-      district: districtName.trim() || "Bangladesh",
-      transportSupport,
-      radiusKm: 5,
-      seekerName: currentUser.name,
-      seekerPhone: currentUser.phone,
-      hospitalLat: hospitalPos[0],
-      hospitalLng: hospitalPos[1],
-      status: initialStatus,
-      createdAt: Date.now(),
-    });
-    localStorage.setItem("redpulse_active_req", reqId);
-    setActiveRequestId(reqId);
-    setShowLocationMap(false);
   };
 
-  // Expand Radar Radius
-  const handleExpandRadius = (newRadius) => {
-    if (!activeRequestId) return;
-    update(ref(rtdb, `emergency_requests/${activeRequestId}`), {
-      radiusKm: newRadius,
-    });
-    alert(`Radar siren radius expanded to ${newRadius} km!`);
-  };
-
-  // Seeker Live Tracking Listener
+  // ==========================================================================
+  // ৮. Firebase রিয়েল-টাইম লিসেনারসমূহ
+  // ==========================================================================
   useEffect(() => {
-    if (!activeRequestId) return;
-    const reqRef = ref(rtdb, `emergency_requests/${activeRequestId}`);
-    return onValue(reqRef, (snapshot) => {
-      const val = snapshot.val();
-      if (!val) {
-        localStorage.removeItem("redpulse_active_req");
-        setActiveRequestId(null);
-        setLiveRequestData(null);
-      } else {
-        setLiveRequestData(val);
-      }
-    });
-  }, [activeRequestId]);
-
-  // Open Live Chat (Open to Everyone + Real-Time Notification + Admin Surveillance)
-  const openDirectChat = (otherPhone, otherName) => {
-    const room = [currentUser.phone, otherPhone].sort().join("_");
-    setChatRoomId(room);
-    setChatPartnerPhone(otherPhone);
-    setChatPartnerName(otherName);
-    setChatAlertBanner(null);
-    remove(ref(rtdb, `chat_notifications/${currentUser.phone}`));
-  };
-
-  useEffect(() => {
-    if (!chatRoomId) return;
-    const msgsRef = ref(rtdb, `chats/${chatRoomId}`);
-    return onValue(msgsRef, (snap) => {
-      const data = snap.val();
-      if (!data) setChatMessages([]);
-      else setChatMessages(Object.entries(data).map(([id, val]) => ({ id, ...val })));
-    });
-  }, [chatRoomId]);
-
-  const handleSendChatMessage = async (e) => {
-    e.preventDefault();
-    if (!chatInput.trim() || !chatRoomId) return;
-    const msgText = chatInput.trim();
-    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-    await push(ref(rtdb, `chats/${chatRoomId}`), {
-      senderPhone: currentUser.phone,
-      senderName: currentUser.name,
-      receiverPhone: chatPartnerPhone,
-      receiverName: chatPartnerName,
-      text: msgText,
-      time: timeStr,
-      timestamp: Date.now(),
-    });
-
-    if (chatPartnerPhone) {
-      await push(ref(rtdb, `chat_notifications/${chatPartnerPhone}`), {
-        roomId: chatRoomId,
-        senderPhone: currentUser.phone,
-        senderName: currentUser.name,
-        text: msgText,
-        time: timeStr,
-        timestamp: Date.now(),
-      });
-    }
-
-    setChatInput("");
-  };
-
-  // Submit User Review (Goes to Admin for Approval)
-  const handleSubmitReview = async (e) => {
-    e.preventDefault();
-    if (!reviewText.trim()) return;
-    setSubmittingReview(true);
-    try {
-      await addDoc(collection(db, "user_reviews"), {
-        userName: currentUser.name,
-        userPhone: currentUser.phone,
-        userBlood: currentUser.bloodGroup,
-        rating: reviewRating,
-        comment: reviewText.trim(),
-        approved: false,
-        createdAt: Date.now(),
-      });
-      setReviewText("");
-      setReviewRating(5);
-      alert("Thank you! Your review has been sent to Admin for approval.");
-      fetchReviews();
-    } catch (err) {
-      alert("Failed to submit review.");
-    }
-    setSubmittingReview(false);
-  };
-
-  // Post-Donation Star Rating
-  const handleSubmitRating = async () => {
-    if (!ratingModalDonor?.donorId) {
-      setRatingModalDonor(null);
-      return;
-    }
-    try {
-      const targetUser = allUsers.find((u) => u.id === ratingModalDonor.donorId);
-      if (targetUser) {
-        await updateDoc(doc(db, "users", targetUser.id), {
-          ratingSum: (targetUser.ratingSum || 0) + selectedStars,
-          ratingCount: (targetUser.ratingCount || 0) + 1,
+    // Master Config & Developer Info
+    const unsubConfig = onSnapshot(doc(db, 'system', 'masterConfig'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setMasterConfig((prev) => ({ ...prev, ...data }));
+        setSecForm({
+          phone: data.phone || '01345365867',
+          pin: data.pin || '7596',
+          recoveryEmail: data.recoveryEmail || 'rejwan239@gmail.com'
+        });
+        setDevEditForm({
+          devName: data.devName || 'Mohammad Rejwan Islam',
+          devRole: data.devRole || 'Founder & Lead Developer',
+          devBio: data.devBio || '',
+          devContact: data.devContact || ''
         });
       }
-    } catch (e) {}
-    setRatingModalDonor(null);
-    alert("Thank you for rating the donor!");
-  };
-
-  // Report Fake User
-  const handleReportUser = async (userObj) => {
-    if (!window.confirm(`Report ${userObj.name}?`)) return;
-    await updateDoc(doc(db, "users", userObj.id), {
-      reports: (userObj.reports || 0) + 1,
-    });
-    alert("Report submitted. Admin will review this account.");
-    fetchAllUsers();
-  };
-
-  // Admin Live Requests & Chat Surveillance Listener
-  useEffect(() => {
-    if (!currentUser?.isAdmin) return;
-
-    const reqRef = ref(rtdb, "emergency_requests");
-    const unsubReq = onValue(reqRef, (snap) => {
-      const data = snap.val();
-      if (!data) setLiveAllRequests([]);
-      else setLiveAllRequests(Object.entries(data).map(([id, val]) => ({ id, ...val })));
     });
 
-    const chatsRef = ref(rtdb, "chats");
-    const unsubChats = onValue(chatsRef, (snap) => {
-      const data = snap.val();
-      if (!data) {
-        setAllChatsMonitor([]);
-        return;
+    // Users
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setUsers(list);
+
+      // বর্তমান ইউজারের আপডেট চেক ও ১২০ দিনের কুলডাউন রিমাইন্ডার
+      if (currentUser && currentUser.role !== 'master_admin') {
+        const fresh = list.find((u) => u.id === currentUser.id);
+        if (fresh) {
+          // অ্যাডমিন কন্ট্রোলড ইমার্জেন্সি অ্যালার্ম চেক
+          if (fresh.activeAlarm && (!currentUser.activeAlarm || fresh.activeAlarm.timestamp !== currentUser.activeAlarm.timestamp)) {
+            setActiveAlarmAlert(fresh.activeAlarm);
+            triggerSystemNotification(
+              '🚨 জরুরি রক্তের অ্যালার্ম!',
+              fresh.activeAlarm.message || 'অ্যাডমিন আপনার জন্য জরুরি অ্যালার্ম পাঠিয়েছেন!',
+              true
+            );
+          }
+
+          // ১২০ দিন পূর্ণ হওয়ার শুভেচ্ছা নোটিফিকেশন
+          const prevStatus = calculateDonorReadiness(currentUser);
+          const newStatus = calculateDonorReadiness(fresh);
+          if (!prevStatus.isReady && newStatus.isReady && fresh.lastDonationDate) {
+            triggerSystemNotification(
+              '🎉 অভিনন্দন! আপনি আবার প্রস্তুত',
+              'আপনার ১২০ দিনের বিশ্রাম পূর্ণ হয়েছে। আপনি এখন আবার জীবন বাঁচাতে রক্তদান করতে পারবেন!'
+            );
+          }
+
+          setCurrentUser(fresh);
+          localStorage.setItem('rp_user', JSON.stringify(fresh));
+        }
       }
-      const flatMsgs = [];
-      Object.entries(data).forEach(([roomId, msgsObj]) => {
-        if (msgsObj && typeof msgsObj === "object") {
-          Object.entries(msgsObj).forEach(([msgId, m]) => {
-            flatMsgs.push({ roomId, msgId, ...m });
-          });
+    });
+
+    // Blood Requests (২৪ ঘণ্টায় অটো-এক্সপায়ার ফিল্টারসহ)
+    const unsubReqs = onSnapshot(collection(db, 'bloodRequests'), (snap) => {
+      const now = Date.now();
+      const validReqs = [];
+      snap.docs.forEach((d) => {
+        const data = { id: d.id, ...d.data() };
+        const createdMs = data.createdAtMs || now;
+        const isExpired = now - createdMs > 24 * 60 * 60 * 1000;
+        if (isExpired && data.status === 'pending') {
+          updateDoc(doc(db, 'bloodRequests', d.id), { status: 'expired' }).catch(() => {});
+        } else if (data.status !== 'expired') {
+          validReqs.push(data);
         }
       });
-      setAllChatsMonitor(flatMsgs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
+      validReqs.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+      setBloodRequests(validReqs);
+    });
+
+    // Contact / Phone Access Requests
+    const unsubContacts = onSnapshot(collection(db, 'contactRequests'), (snap) => {
+      setContactRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    // Live Chat Messages
+    const unsubMsgs = onSnapshot(collection(db, 'messages'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+      setMessages(list);
+    });
+
+    // Blood Banks
+    const unsubBanks = onSnapshot(collection(db, 'bloodBanks'), (snap) => {
+      setBloodBanks(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    // Ambulances
+    const unsubAmb = onSnapshot(collection(db, 'ambulances'), (snap) => {
+      setAmbulances(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    // Ratings
+    const unsubRatings = onSnapshot(collection(db, 'ratings'), (snap) => {
+      setRatings(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
 
     return () => {
-      unsubReq();
-      unsubChats();
+      unsubConfig();
+      unsubUsers();
+      unsubReqs();
+      unsubContacts();
+      unsubMsgs();
+      unsubBanks();
+      unsubAmb();
+      unsubRatings();
     };
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
-  // Admin Unlock
-  const handleAdminUnlock = (e) => {
+  // ==========================================================================
+  // ৯. ডোনার রিকোয়েস্ট Accept করলেই লাইভ GPS লোকেশন শেয়ারিং চালু
+  // ==========================================================================
+  useEffect(() => {
+    if (!currentUser || currentUser.role === 'master_admin') return;
+
+    const acceptedReqByMe = bloodRequests.find(
+      (r) => r.acceptedByPhone === currentUser.phone && r.status === 'accepted'
+    );
+
+    if (acceptedReqByMe && 'geolocation' in navigator) {
+      if (!geoWatchRef.current) {
+        geoWatchRef.current = navigator.geolocation.watchPosition(
+          (pos) => {
+            const coords = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              updatedAt: new Date().toLocaleTimeString()
+            };
+            updateDoc(doc(db, 'bloodRequests', acceptedReqByMe.id), {
+              donorLiveLocation: coords
+            }).catch(() => {});
+          },
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 5000 }
+        );
+      }
+    } else if (geoWatchRef.current) {
+      navigator.geolocation.clearWatch(geoWatchRef.current);
+      geoWatchRef.current = null;
+    }
+
+    return () => {
+      if (geoWatchRef.current) {
+        navigator.geolocation.clearWatch(geoWatchRef.current);
+        geoWatchRef.current = null;
+      }
+    };
+  }, [bloodRequests, currentUser]);
+
+  // ==========================================================================
+  // ১০. থিম পরিবর্তন ও অথেনটিকেশন হ্যান্ডলার
+  // ==========================================================================
+  const cycleTheme = () => {
+    const keys = Object.keys(THEMES);
+    const next = keys[(keys.indexOf(themeKey) + 1) % keys.length];
+    setThemeKey(next);
+    localStorage.setItem('rp_theme', next);
+  };
+
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
-    if (pinEntry === ADMIN_SECRET_PIN) {
-      setAdminUnlocked(true);
-      fetchAllUsers();
-      fetchReviews();
+    setAuthError('');
+    const cleanPhone = authForm.phone.trim();
+    const cleanPin = authForm.pin.trim();
+
+    if (!cleanPhone || !cleanPin) {
+      setAuthError('মোবাইল নম্বর এবং গোপন PIN দিন।');
+      return;
+    }
+
+    if (authMode === 'login') {
+      // Master Admin চেক
+      if (cleanPhone === masterConfig.phone && cleanPin === masterConfig.pin) {
+        const masterUser = {
+          id: 'master_admin',
+          name: 'Master Admin',
+          phone: masterConfig.phone,
+          bloodGroup: 'O+',
+          role: 'master_admin'
+        };
+        setCurrentUser(masterUser);
+        localStorage.setItem('rp_user', JSON.stringify(masterUser));
+        setActiveTab('home');
+        return;
+      }
+
+      // Blood Bank চেক
+      const matchedBank = bloodBanks.find((b) => b.phone === cleanPhone && b.pin === cleanPin);
+      if (matchedBank) {
+        const bankUser = {
+          id: matchedBank.id,
+          name: matchedBank.name,
+          phone: matchedBank.phone,
+          bloodGroup: 'BANK',
+          role: 'blood_bank',
+          bankId: matchedBank.id
+        };
+        setCurrentUser(bankUser);
+        localStorage.setItem('rp_user', JSON.stringify(bankUser));
+        setActiveTab('home');
+        return;
+      }
+
+      // সাধারণ ইউজার / হায়ার করা Admin / Data Entry Operator চেক
+      const matchedUser = users.find((u) => u.phone === cleanPhone && u.pin === cleanPin);
+      if (!matchedUser) {
+        setAuthError('ভুল মোবাইল নম্বর অথবা ভুল PIN দিয়েছেন!');
+        return;
+      }
+      if (matchedUser.isBanned) {
+        setAuthError('আপনার অ্যাকাউন্টটি অ্যাডমিন কর্তৃক স্থগিত করা হয়েছে।');
+        return;
+      }
+
+      setCurrentUser(matchedUser);
+      localStorage.setItem('rp_user', JSON.stringify(matchedUser));
+      setActiveTab('home');
     } else {
-      alert("Wrong Secret PIN!");
+      // সহজ ৪-ফিল্ড সাইন-আপ
+      if (!authForm.name.trim()) {
+        setAuthError('আপনার নাম লিখুন।');
+        return;
+      }
+      const exists = users.some((u) => u.phone === cleanPhone);
+      if (exists) {
+        setAuthError('এই মোবাইল নম্বর দিয়ে আগেই অ্যাকাউন্ট খোলা হয়েছে!');
+        return;
+      }
+
+      const newUser = {
+        name: authForm.name.trim(),
+        phone: cleanPhone,
+        bloodGroup: authForm.bloodGroup,
+        pin: cleanPin,
+        role: 'donor',
+        location: '',
+        age: '',
+        weight: '',
+        hemoglobin: '',
+        lastDonationDate: '',
+        onMedication: false,
+        donationCount: 0,
+        verifiedDonations: 0,
+        reviews: [],
+        isBanned: false,
+        createdAtMs: Date.now()
+      };
+
+      const docRef = await addDoc(collection(db, 'users'), newUser);
+      const savedUser = { id: docRef.id, ...newUser };
+      setCurrentUser(savedUser);
+      localStorage.setItem('rp_user', JSON.stringify(savedUser));
+      setActiveTab('home');
     }
   };
 
-  // Logout
   const handleLogout = () => {
-    localStorage.removeItem("redpulse_user");
     setCurrentUser(null);
-    setIsStandby(false);
-    setAdminUnlocked(false);
-    setShowMoreMenu(false);
+    localStorage.removeItem('rp_user');
+    setActiveTab('home');
+    setRedpulseSubView(null);
   };
 
-  // Interactive Eligibility Quiz Handler
-  const handleRunEligibilityQuiz = (e) => {
+  // ==========================================================================
+  // ১১. রক্তের রিকোয়েস্ট তৈরি, Accept ও Verified Completion
+  // ==========================================================================
+  const handleCreateBloodRequest = async (e) => {
     e.preventDefault();
-    const ageNum = Number(quizAge);
-    const weightNum = Number(quizWeight);
-    const daysNum = Number(quizDays);
+    if (!reqForm.patientName || !reqForm.hospital) return;
 
-    if (ageNum < 18 || ageNum > 60) {
-      setQuizResult({
-        ok: false,
-        msg: "রক্তদানের জন্য বয়স ১৮ থেকে ৬০ বছরের মধ্যে হতে হবে।",
-      });
-    } else if (weightNum < 50) {
-      setQuizResult({
-        ok: false,
-        msg: "নিরাপদ রক্তদানের জন্য ওজন কমপক্ষে ৫০ কেজি হতে হবে।",
-      });
-    } else if (daysNum < COOLDOWN_DAYS) {
-      setQuizResult({
-        ok: false,
-        msg: `শেষ রক্তদানের পর কমপক্ষে ${COOLDOWN_DAYS} দিন (৪ মাস) বিরতি প্রয়োজন। আপনার আরও ${
-          COOLDOWN_DAYS - daysNum
-        } দিন অপেক্ষা করতে হবে।`,
-      });
-    } else if (quizHemo === "Low") {
-      setQuizResult({
-        ok: false,
-        msg: "হিমোগ্লোবিনের মাত্রা কম থাকলে রক্তদান করা নিরাপদ নয়। পুষ্টিকর খাবার খেয়ে হিমোগ্লোবিন স্বাভাবিক করুন।",
-      });
-    } else if (quizMed === "Yes") {
-      setQuizResult({
-        ok: false,
-        msg: "বর্তমানে অ্যান্টিবায়োটিক বা নিয়মিত কোনো ওষুধ সেবন করলে ডাক্তারের পরামর্শ ছাড়া রক্তদান করা উচিত নয়।",
-      });
-    } else {
-      setQuizResult({
-        ok: true,
-        msg: "অভিনন্দন! আপনি আজ রক্তদানের জন্য ১০০% সুস্থ ও যোগ্য। আপনার এক ব্যাগ রক্ত একটি প্রাণ বাঁচাতে পারে!",
+    const isRare = RARE_GROUPS.includes(reqForm.bloodGroup);
+    const payload = {
+      ...reqForm,
+      requesterId: currentUser.id,
+      requesterName: currentUser.name,
+      requesterPhone: currentUser.phone,
+      isRareSOS: isRare,
+      status: 'pending', // 'pending' | 'accepted' | 'completed' | 'expired'
+      acceptedByPhone: null,
+      acceptedByName: null,
+      donorLiveLocation: null,
+      createdAtMs: Date.now()
+    };
+
+    await addDoc(collection(db, 'bloodRequests'), payload);
+    setShowRequestModal(false);
+    setReqForm({ patientName: '', bloodGroup: 'O+', bags: 1, hospital: '', contactPhone: '', urgency: 'Emergency' });
+    triggerSystemNotification(
+      isRare ? `🚨 RARE SOS: ${payload.bloodGroup} রক্তের প্রয়োজন!` : `🩸 নতুন রক্তের রিকোয়েস্ট (${payload.bloodGroup})`,
+      `${payload.hospital}-এ ${payload.bags} ব্যাগ ${payload.bloodGroup} রক্ত প্রয়োজন।`
+    );
+  };
+
+  const handleAcceptBloodRequest = async (reqItem) => {
+    await updateDoc(doc(db, 'bloodRequests', reqItem.id), {
+      status: 'accepted',
+      acceptedByPhone: currentUser.phone,
+      acceptedByName: currentUser.name,
+      acceptedAtMs: Date.now()
+    });
+    triggerSystemNotification(
+      '✅ রিকোয়েস্ট গৃহীত হয়েছে!',
+      'আপনার লাইভ লোকেশন এখন রোগীর স্বজনের সাথে শেয়ার হচ্ছে।'
+    );
+  };
+
+  const handleCompleteDonation = async (reqItem) => {
+    const donorObj = users.find((u) => u.phone === reqItem.acceptedByPhone);
+    if (donorObj) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const newVerifiedCount = (donorObj.verifiedDonations || 0) + 1;
+      const newTotalCount = (donorObj.donationCount || 0) + 1;
+      const existingReviews = donorObj.reviews || [];
+      await updateDoc(doc(db, 'users', donorObj.id), {
+        lastDonationDate: todayStr,
+        donationCount: newTotalCount,
+        verifiedDonations: newVerifiedCount,
+        reviews: [
+          ...existingReviews,
+          {
+            from: currentUser.name,
+            hospital: reqItem.hospital,
+            date: todayStr,
+            note: 'সফলভাবে রক্তদান সম্পন্ন করেছেন — অসংখ্য ধন্যবাদ!'
+          }
+        ]
       });
     }
+
+    await updateDoc(doc(db, 'bloodRequests', reqItem.id), {
+      status: 'completed',
+      donorLiveLocation: null
+    });
+    alert('রক্তদান সম্পন্ন হিসেবে ভেরিফাই করা হয়েছে এবং ডোনারের প্রোফাইলে সার্টিফিকেট ও ১২০ দিনের কুলডাউন যুক্ত হয়েছে!');
   };
 
-  // Theme & 3D Button Styling Helpers
-  const pageBg = currentTheme.pageBg;
-  const cardBg = currentTheme.cardBg;
-  const inputBg = currentTheme.inputBg;
-  const subText = currentTheme.subText;
-  const btnPrimary = currentTheme.primaryBtn;
+  // ==========================================================================
+  // ১২. ফোন নম্বর রিকোয়েস্ট ও অ্যাডমিন অ্যাপ্রুভাল
+  // ==========================================================================
+  const handleRequestPhoneNumber = async (targetDonor) => {
+    const already = contactRequests.find(
+      (c) => c.requesterPhone === currentUser.phone && c.targetPhone === targetDonor.phone
+    );
+    if (already) {
+      alert(already.status === 'approved' ? 'নম্বর ইতিমধ্যেই অনুমোদিত!' : 'আপনার রিকোয়েস্টটি অ্যাডমিনের অনুমোদনের অপেক্ষায় আছে।');
+      return;
+    }
 
-  const btn3DRed =
-    "bg-gradient-to-b from-red-500 to-red-600 hover:from-red-500 hover:to-red-700 text-white font-extrabold border-b-4 border-red-800 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-red-600/25 transition-all";
-  const btn3DGreen =
-    "bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white font-extrabold border-b-4 border-emerald-800 active:border-b-0 active:translate-y-0.5 shadow-lg shadow-emerald-600/25 transition-all";
-  const btn3DDark =
-    "bg-gradient-to-b from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-800 text-white font-bold border-b-4 border-slate-950 active:border-b-0 active:translate-y-0.5 shadow-md transition-all";
-  const btn3DBlue =
-    "bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white font-bold border-b-4 border-blue-800 active:border-b-0 active:translate-y-0.5 shadow-md transition-all";
+    await addDoc(collection(db, 'contactRequests'), {
+      requesterPhone: currentUser.phone,
+      requesterName: currentUser.name,
+      targetPhone: targetDonor.phone,
+      targetName: targetDonor.name,
+      targetBloodGroup: targetDonor.bloodGroup,
+      status: 'pending',
+      createdAtMs: Date.now()
+    });
+    alert('ফোন নম্বর দেখার অনুরোধ অ্যাডমিনের কাছে পাঠানো হয়েছে। অনুমোদন পেলেই নম্বর দেখতে পাবেন।');
+  };
 
-  /* ============================================================================
-     1. LOGIN, REGISTRATION (WITH READINESS FIELDS) & FORGET PASSWORD SCREEN
-     ============================================================================ */
+  const isPhoneApproved = (targetPhone) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'master_admin' || currentUser.role === 'admin') return true;
+    if (currentUser.phone === targetPhone) return true;
+    return contactRequests.some(
+      (c) => c.requesterPhone === currentUser.phone && c.targetPhone === targetPhone && c.status === 'approved'
+    );
+  };
+
+  // ==========================================================================
+  // ১৩. লাইভ চ্যাট মেসেজ পাঠানো (Sender ➔ Receiver স্পষ্টভাবে সংরক্ষিত)
+  // ==========================================================================
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!chatText.trim() || !chatReceiver) return;
+
+    const msgPayload = {
+      senderPhone: currentUser.phone,
+      senderName: currentUser.name,
+      receiverPhone: chatReceiver.phone,
+      receiverName: chatReceiver.name,
+      text: chatText.trim(),
+      createdAtMs: Date.now(),
+      timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    await addDoc(collection(db, 'messages'), msgPayload);
+    setChatText('');
+    playSoundEffect('chime');
+  };
+
+  // ==========================================================================
+  // ১৪. Email OTP ভেরিফিকেশন (স্পেশাল অ্যাকাউন্ট তৈরি ও Master Admin সিকিউরিটি)
+  // ==========================================================================
+  const sendEmailOtp = (purpose) => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setOtpState({
+      step: 'sent',
+      generatedCode: code,
+      inputCode: '',
+      purpose
+    });
+
+    // ইমেইল ক্লায়েন্ট ও তাৎক্ষণিক ভেরিফিকেশন অ্যালার্ট ট্রিগার
+    const subject = encodeURIComponent('RedPulse Master Admin Verification Code');
+    const body = encodeURIComponent(
+      `আপনার RedPulse Master Admin ভেরিফিকেশন কোড হলো: ${code}\n\nএই কোডটি কাউকে শেয়ার করবেন না।`
+    );
+    window.open(`mailto:${masterConfig.recoveryEmail}?subject=${subject}&body=${body}`, '_blank');
+    alert(`ভেরিফিকেশন কোড (${masterConfig.recoveryEmail}-এ) পাঠানো হয়েছে!\n\n[ডেমো/ব্যাকআপ কোড: ${code}]`);
+  };
+
+  const handleVerifyAndExecute = async () => {
+    if (otpState.inputCode.trim() !== otpState.generatedCode) {
+      alert('ভুল ভেরিফিকেশন কোড দিয়েছেন! আবার চেষ্টা করুন।');
+      return;
+    }
+
+    if (otpState.purpose === 'create_account') {
+      if (createAccountType === 'blood_bank') {
+        const bankPayload = {
+          name: newAccForm.name.trim(),
+          address: newAccForm.address.trim(),
+          location: newAccForm.location.trim(),
+          phone: newAccForm.phone.trim(),
+          pin: newAccForm.pin.trim(),
+          stock: { 'A+': 0, 'A-': 0, 'B+': 0, 'B-': 0, 'O+': 0, 'O-': 0, 'AB+': 0, 'AB-': 0 },
+          updatedAt: new Date().toLocaleString()
+        };
+        await addDoc(collection(db, 'bloodBanks'), bankPayload);
+        alert('নতুন Blood Bank অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!');
+      } else {
+        const roleType = createAccountType === 'admin' ? 'admin' : 'data_entry';
+        const userPayload = {
+          name: newAccForm.name.trim(),
+          phone: newAccForm.phone.trim(),
+          bloodGroup: newAccForm.bloodGroup || 'O+',
+          pin: newAccForm.pin.trim(),
+          role: roleType,
+          location: newAccForm.location || '',
+          donationCount: 0,
+          verifiedDonations: 0,
+          reviews: [],
+          isBanned: false,
+          createdAtMs: Date.now()
+        };
+        await addDoc(collection(db, 'users'), userPayload);
+        alert(`নতুন ${roleType === 'admin' ? 'Admin' : 'Data Entry Operator'} অ্যাকাউন্ট তৈরি হয়েছে!`);
+      }
+      setNewAccForm({ name: '', phone: '', bloodGroup: 'O+', pin: '', address: '', location: '' });
+    } else if (otpState.purpose === 'update_master') {
+      await setDoc(
+        doc(db, 'system', 'masterConfig'),
+        {
+          ...masterConfig,
+          phone: secForm.phone.trim(),
+          pin: secForm.pin.trim(),
+          recoveryEmail: secForm.recoveryEmail.trim()
+        },
+        { merge: true }
+      );
+      alert('Master Admin মোবাইল নম্বর ও গোপন PIN সফলভাবে আপডেট হয়েছে!');
+    }
+
+    setOtpState({ step: 'idle', generatedCode: '', inputCode: '', purpose: '' });
+  };
+
+  // ==========================================================================
+  // ১৫. লগইন / সাইন-আপ স্ক্রিন (যদি লগইন করা না থাকে)
+  // ==========================================================================
   if (!currentUser) {
     return (
-      <div
-        className={`min-h-screen flex items-center justify-center p-4 relative overflow-hidden transition-colors ${pageBg}`}
-      >
+      <div className={`min-h-screen ${theme.bg} ${theme.textMain} relative flex flex-col justify-center items-center p-5 transition-colors duration-500`}>
+        <BloodDropWatermark color={theme.watermark} />
+
+        {/* থিম সুইচার উপরে */}
         <button
-          onClick={() => {
-            const keys = Object.keys(APP_THEMES);
-            const nextIdx = (keys.indexOf(themeKey) + 1) % keys.length;
-            setThemeKey(keys[nextIdx]);
-          }}
-          className="fixed top-4 right-4 z-20 px-3 py-2 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur border border-red-400/30 shadow-lg text-xs font-extrabold flex items-center gap-1.5 text-red-600"
-          title="Switch Theme"
+          onClick={cycleTheme}
+          className={`fixed top-5 right-5 z-20 p-3 rounded-2xl border ${theme.card} flex items-center gap-2 text-xs font-bold`}
         >
-          <Palette className="w-4 h-4" /> {currentTheme.label}
+          <Palette className={`w-4 h-4 ${theme.accentText}`} />
+          <span>{theme.name}</span>
         </button>
 
-        <Droplet className="w-64 h-64 text-red-500/10 fixed -top-10 -left-10 rotate-12 pointer-events-none" />
-        <Droplet className="w-80 h-80 text-red-600/10 fixed -bottom-16 -right-16 -rotate-12 pointer-events-none" />
-
-        <div className={`w-full max-w-md rounded-3xl border p-6 z-10 ${cardBg}`}>
-          <div className="flex flex-col items-center text-center mb-5">
-            <div className={`bg-gradient-to-b ${currentTheme.headerBg} p-3 rounded-2xl shadow-lg border-b-4 border-red-900 mb-2`}>
-              <RedPulseLogo size={42} />
+        <div className={`w-full max-w-md rounded-3xl border p-7 backdrop-blur-md z-10 ${theme.card}`}>
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className={`w-16 h-16 rounded-2xl ${theme.btn3d} flex items-center justify-center mb-3`}>
+              <Droplet className="w-9 h-9 fill-current" />
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight">RedPulse</h1>
-            <p className={`text-xs font-semibold ${currentTheme.accentText}`}>
-              Emergency Blood Radar • জরুরি রক্তের নেটওয়ার্ক
-            </p>
+            <h1 className="text-2xl font-black tracking-tight">RedPulse</h1>
+            <p className={`text-xs mt-1 ${theme.textSub}`}>জরুরি রক্তদাতা ও ব্লাড ব্যাংক নেটওয়ার্ক</p>
           </div>
 
-          {authMode !== "forgot" && (
-            <div className={`flex p-1 rounded-2xl mb-5 ${darkMode ? "bg-slate-800/80" : "bg-red-50"}`}>
-              <button
-                onClick={() => setAuthMode("login")}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition ${
-                  authMode === "login"
-                    ? "bg-red-600 text-white shadow"
-                    : darkMode
-                    ? "text-slate-300"
-                    : "text-red-700"
-                }`}
-              >
-                Login (লগইন)
-              </button>
-              <button
-                onClick={() => setAuthMode("register")}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition ${
-                  authMode === "register"
-                    ? "bg-red-600 text-white shadow"
-                    : darkMode
-                    ? "text-slate-300"
-                    : "text-red-700"
-                }`}
-              >
-                Register (নতুন অ্যাকাউন্ট)
-              </button>
+          {/* লগইন / সাইন-আপ টগল */}
+          <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-200/60 dark:bg-slate-800/60 mb-5">
+            <button
+              type="button"
+              onClick={() => { setAuthMode('login'); setAuthError(''); }}
+              className={`py-2.5 rounded-xl text-sm font-bold transition-all ${
+                authMode === 'login' ? theme.btn3d : theme.textSub
+              }`}
+            >
+              লগইন করুন
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthMode('signup'); setAuthError(''); }}
+              className={`py-2.5 rounded-xl text-sm font-bold transition-all ${
+                authMode === 'signup' ? theme.btn3d : theme.textSub
+              }`}
+            >
+              নতুন অ্যাকাউন্ট
+            </button>
+          </div>
+
+          {authError && (
+            <div className="mb-4 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 text-xs font-semibold text-center">
+              {authError}
             </div>
           )}
 
-          {authMode === "login" && (
-            <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleAuthSubmit} className="space-y-4">
+            {authMode === 'signup' && (
               <div>
-                <label className="block text-xs font-bold mb-1">Phone Number (মোবাইল নম্বর)</label>
+                <label className="block text-xs font-bold mb-1">আপনার নাম</label>
                 <input
-                  required
-                  type="tel"
-                  placeholder="01XXXXXXXXX"
-                  value={phoneInput}
-                  onChange={(e) => setPhoneInput(e.target.value)}
-                  className={`w-full border rounded-xl p-3 text-sm outline-none ${inputBg}`}
-                />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-bold">Password (পাসওয়ার্ড)</label>
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode("forgot")}
-                    className="text-xs text-red-500 font-bold hover:underline"
-                  >
-                    Forget Password?
-                  </button>
-                </div>
-                <input
-                  required
-                  type="password"
-                  placeholder="Enter your password"
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  className={`w-full border rounded-xl p-3 text-sm outline-none ${inputBg}`}
-                />
-              </div>
-              <button
-                disabled={authLoading}
-                type="submit"
-                className={`w-full py-3.5 rounded-2xl text-sm ${btnPrimary}`}
-              >
-                {authLoading ? "Checking..." : "Login Now • প্রবেশ করুন"}
-              </button>
-            </form>
-          )}
-
-          {authMode === "forgot" && (
-            <form onSubmit={handleForgetPassword} className="space-y-3.5">
-              <div className="text-center mb-2">
-                <h3 className="font-extrabold text-base text-red-500">
-                  Reset Password (পাসওয়ার্ড রিসেট)
-                </h3>
-                <p className={`text-xs ${subText}`}>
-                  Enter registered Phone & Email to set a new password
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs font-bold mb-1">Phone Number (ফোন নম্বর)</label>
-                <input
-                  required
-                  type="tel"
-                  placeholder="01XXXXXXXXX"
-                  value={phoneInput}
-                  onChange={(e) => setPhoneInput(e.target.value)}
-                  className={`w-full border rounded-xl p-2.5 text-sm ${inputBg}`}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold mb-1">Email Address (ইমেইল)</label>
-                <input
-                  required
-                  type="email"
-                  placeholder="example@gmail.com"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  className={`w-full border rounded-xl p-2.5 text-sm ${inputBg}`}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold mb-1">New Password (নতুন পাসওয়ার্ড)</label>
-                <input
-                  required
-                  type="password"
-                  placeholder="Min 4 characters"
-                  value={newPasswordInput}
-                  onChange={(e) => setNewPasswordInput(e.target.value)}
-                  className={`w-full border rounded-xl p-2.5 text-sm ${inputBg}`}
-                />
-              </div>
-              <button
-                disabled={authLoading}
-                type="submit"
-                className={`w-full py-3 rounded-2xl text-sm ${btnPrimary}`}
-              >
-                {authLoading ? "Updating..." : "Set New Password • সেভ করুন"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAuthMode("login")}
-                className="w-full text-xs text-center text-slate-400 font-bold pt-1"
-              >
-                ← Back to Login (ফিরে যান)
-              </button>
-            </form>
-          )}
-
-          {authMode === "register" && (
-            <form onSubmit={handleRegister} className="space-y-2.5 max-h-[72vh] overflow-y-auto pr-1">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <label className="block text-[11px] font-bold mb-0.5">Full Name (আপনার নাম)</label>
-                  <input
-                    required
-                    type="text"
-                    placeholder="EX: Mohammad Rejwan Islam"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Gender (লিঙ্গ)</label>
-                  <select
-                    value={genderInput}
-                    onChange={(e) => setGenderInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
-                  >
-                    <option value="Male">Male (পুরুষ)</option>
-                    <option value="Female">Female (মহিলা)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Phone (ফোন নম্বর)</label>
-                  <input
-                    required
-                    type="tel"
-                    placeholder="017XXXXXXXX"
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Password (পাসওয়ার্ড)</label>
-                  <input
-                    required
-                    type="password"
-                    placeholder="Min 4 characters"
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Email (ইমেইল)</label>
-                  <input
-                    required
-                    type="email"
-                    placeholder="name@gmail.com"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Date of Birth (জন্মতারিখ)</label>
-                  <input
-                    required
-                    type="date"
-                    value={dobInput}
-                    onChange={(e) => setDobInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                  />
-                </div>
-              </div>
-
-              {/* AUTO-READINESS HEALTH INPUTS */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Weight (ওজন kg)</label>
-                  <input
-                    required
-                    type="number"
-                    min="30"
-                    max="180"
-                    placeholder="58"
-                    value={weightInput}
-                    onChange={(e) => setWeightInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Hemoglobin</label>
-                  <select
-                    value={hemoglobinInput}
-                    onChange={(e) => setHemoglobinInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-[11px] font-bold ${inputBg}`}
-                  >
-                    <option value="Normal">Normal (স্বাভাবিক)</option>
-                    <option value="Low">Low (কম)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Medicine?</label>
-                  <select
-                    value={medicationInput}
-                    onChange={(e) => setMedicationInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-[11px] font-bold ${inputBg}`}
-                  >
-                    <option value="No">No (সুস্থ আছি)</option>
-                    <option value="Yes">Yes (ওষুধ চলছে)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Blood Group (রক্তের গ্রুপ)</label>
-                  <select
-                    value={bloodInput}
-                    onChange={(e) => setBloodInput(e.target.value)}
-                    className="w-full border border-red-300 rounded-xl p-2 text-xs font-extrabold text-red-600 bg-red-50"
-                  >
-                    {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
-                      <option key={bg} value={bg}>
-                        {bg}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold mb-0.5">Last Donation (শেষ রক্তদান)</label>
-                  <input
-                    type="date"
-                    value={lastDonationInput}
-                    onChange={(e) => setLastDonationInput(e.target.value)}
-                    className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold mb-0.5">District & Area (জেলা ও এলাকা)</label>
-                <input
-                  required
                   type="text"
-                  placeholder="EX: Savar, Dhaka"
-                  value={addressInput}
-                  onChange={(e) => setAddressInput(e.target.value)}
-                  className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
+                  required
+                  placeholder="যেমন: তানভীর আহমেদ"
+                  value={authForm.name}
+                  onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })}
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-300/80 bg-white/80 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
+            )}
 
-              <button
-                disabled={authLoading}
-                type="submit"
-                className={`w-full py-3 rounded-2xl text-xs mt-1 ${btnPrimary}`}
-              >
-                {authLoading ? "Creating Account..." : "Complete Registration • সম্পন্ন করুন"}
-              </button>
-            </form>
-          )}
+            <div>
+              <label className="block text-xs font-bold mb-1">মোবাইল নম্বর (প্রাইভেট থাকবে)</label>
+              <input
+                type="tel"
+                required
+                placeholder="01XXXXXXXXX"
+                value={authForm.phone}
+                onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })}
+                className="w-full px-4 py-3 rounded-2xl border border-slate-300/80 bg-white/80 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+
+            {authMode === 'signup' && (
+              <div>
+                <label className="block text-xs font-bold mb-1">রক্তের গ্রুপ</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {BLOOD_GROUPS.map((bg) => (
+                    <button
+                      type="button"
+                      key={bg}
+                      onClick={() => setAuthForm({ ...authForm, bloodGroup: bg })}
+                      className={`py-2 rounded-xl text-xs font-black border transition-all ${
+                        authForm.bloodGroup === bg ? theme.btn3d : 'bg-white/70 text-slate-700 border-slate-300'
+                      }`}
+                    >
+                      {bg}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold mb-1">গোপন PIN (৪ ডিজিট)</label>
+              <input
+                type="password"
+                required
+                maxLength={6}
+                placeholder="••••"
+                value={authForm.pin}
+                onChange={(e) => setAuthForm({ ...authForm, pin: e.target.value })}
+                className="w-full px-4 py-3 rounded-2xl border border-slate-300/80 bg-white/80 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+
+            <button type="submit" className={`w-full py-3.5 rounded-2xl font-black text-sm tracking-wide transition-all ${theme.btn3d}`}>
+              {authMode === 'login' ? 'প্রবেশ করুন' : 'দ্রুত অ্যাকাউন্ট তৈরি করুন'}
+            </button>
+          </form>
         </div>
       </div>
     );
   }
 
-  /* ============================================================================
-     2. MAIN APP DASHBOARD
-     ============================================================================ */
-  const myReadiness = evaluateDonorReadiness(currentUser);
-  const userAge = calculateAge(currentUser.dob);
-  const liveDistanceKm =
-    liveRequestData?.donorLat && liveRequestData?.hospitalLat
-      ? getDistanceKm(
-          liveRequestData.donorLat,
-          liveRequestData.donorLng,
-          liveRequestData.hospitalLat,
-          liveRequestData.hospitalLng
-        )
-      : null;
-  const estimatedMinutes = liveDistanceKm !== null ? Math.max(2, Math.round(liveDistanceKm * 4)) : null;
+  // ==========================================================================
+  // ১৬. লগইন করা অবস্থায় ফিল্টার ও ক্যালকুলেটেড ডেটা
+  // ==========================================================================
+  const isMasterAdmin = currentUser.role === 'master_admin';
+  const isHiredAdmin = currentUser.role === 'admin';
+  const isDataEntry = currentUser.role === 'data_entry';
+  const isBloodBank = currentUser.role === 'blood_bank';
 
-  const filteredDirectory = allUsers.filter((u) => {
-    if (u.banned && !currentUser.isAdmin) return false;
-    const matchBlood = filterBlood === "ALL" || u.bloodGroup === filterBlood;
-    const matchGender = filterGender === "ALL" || (u.gender || "Male") === filterGender;
-    const matchArea =
-      !filterArea.trim() || u.address?.toLowerCase().includes(filterArea.toLowerCase());
-    return matchBlood && matchGender && matchArea;
-  });
+  const activeDonorsList = users.filter((u) => !u.isBanned && u.role !== 'master_admin');
+  const availableDonorsList = activeDonorsList.filter((u) => calculateDonorReadiness(u).isReady);
+  const topHeroesList = [...activeDonorsList]
+    .filter((u) => (u.verifiedDonations || u.donationCount || 0) > 0)
+    .sort((a, b) => (b.verifiedDonations || b.donationCount || 0) - (a.verifiedDonations || a.donationCount || 0));
 
-  const filteredBanks = EMERGENCY_DIRECTORY.filter(
-    (item) =>
-      item.name.toLowerCase().includes(bankSearch.toLowerCase()) ||
-      item.area.toLowerCase().includes(bankSearch.toLowerCase())
+  // হোমপেজের কন্ডিশনাল রিকোয়েস্ট কার্ড (Sending / Received Request — না থাকলে হাইড থাকবে)
+  const myActiveRequests = bloodRequests.filter(
+    (r) =>
+      r.status !== 'completed' &&
+      (r.requesterPhone === currentUser.phone ||
+        r.acceptedByPhone === currentUser.phone ||
+        (r.status === 'pending' && r.bloodGroup === currentUser.bloodGroup))
   );
 
-  const topHeroes = [...allUsers]
-    .filter((u) => (u.donationCount || 0) > 0 && !u.banned)
-    .sort((a, b) => (b.donationCount || 0) - (a.donationCount || 0))
-    .slice(0, 10);
+  const pendingContactReqs = contactRequests.filter((c) => c.status === 'pending');
 
-  const approvedReviews = allReviews.filter((r) => r.approved === true);
-  const pendingReviews = allReviews.filter((r) => !r.approved);
-  const pendingAdminRequests = liveAllRequests.filter((r) => r.status === "pending_admin");
-  const pendingContactRequests = contactRequestsMonitor.filter((c) => c.status === "pending");
+  // বটম নেভিগেশন ট্যাব নির্ধারণ (রোল অনুযায়ী)
+  const navTabs = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'redpulse', label: 'RedPulse', icon: Droplet },
+    { id: 'profile', label: 'Profile', icon: User }
+  ];
+  if (isMasterAdmin || isHiredAdmin) {
+    navTabs.push({ id: 'admin', label: 'Admin Panel', icon: Shield });
+  } else if (isDataEntry) {
+    navTabs.push({ id: 'data_entry', label: 'Data Entry', icon: Database });
+  } else if (isBloodBank) {
+    navTabs.push({ id: 'bank_portal', label: 'Bank Portal', icon: Building2 });
+  }
 
+  // ==========================================================================
+  // ১৭. মেইন অ্যাপ ইন্টারফেস রেন্ডার
+  // ==========================================================================
   return (
-    <div className={`min-h-screen font-sans pb-24 relative transition-colors duration-300 ${pageBg}`}>
-      {/* REAL-TIME INCOMING CHAT BANNER */}
-      {chatAlertBanner && (
-        <div
-          onClick={() => openDirectChat(chatAlertBanner.senderPhone, chatAlertBanner.senderName)}
-          className="fixed top-16 inset-x-3 max-w-md mx-auto z-50 bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-3.5 rounded-2xl shadow-2xl border border-emerald-300/40 flex items-center justify-between cursor-pointer animate-bounce"
-        >
+    <div className={`min-h-screen ${theme.bg} ${theme.textMain} pb-28 relative transition-colors duration-500 overflow-x-hidden`}>
+      {/* প্রতিটি পেজে 3D Blood Drop Watermark */}
+      <BloodDropWatermark color={theme.watermark} />
+
+      {/* মারকুই স্ক্রলিং অ্যানিমেশন স্টাইল */}
+      <style>{`
+        @keyframes marqueeScroll {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          display: inline-block;
+          white-space: nowrap;
+          animation: marqueeScroll 22s linear infinite;
+        }
+      `}</style>
+
+      {/* ==================================================================== */}
+      {/* টপ হেডার বার (স্কেচ অনুযায়ী: বামে Name + Blood Group, ডানে Notification + Theme Switch) */}
+      {/* ==================================================================== */}
+      <header className={`sticky top-0 z-30 backdrop-blur-md border-b px-4 py-3 ${theme.navBg}`}>
+        <div className="max-w-xl mx-auto flex items-center justify-between">
+          {/* বাম পাশে ইউজার প্রোফাইল আইকন, নাম ও ব্লাড গ্রুপ */}
+          <div
+            onClick={() => { setActiveTab('profile'); setRedpulseSubView(null); }}
+            className="flex items-center gap-3 cursor-pointer"
+          >
+            <div className={`w-11 h-11 rounded-2xl ${theme.btn3d} flex items-center justify-center font-black text-base`}>
+              {currentUser.name?.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h2 className="font-extrabold text-sm leading-tight">{currentUser.name}</h2>
+              <span className={`inline-flex items-center gap-1 mt-0.5 px-2.5 py-0.5 rounded-full text-[11px] font-black border ${theme.badge}`}>
+                <Droplet className="w-3 h-3 fill-current" />
+                {currentUser.bloodGroup}
+              </span>
+            </div>
+          </div>
+
+          {/* ডান পাশে Notification বেল ও Theme Switch বাটন (Radar সুইচ বাদ দেওয়া হয়েছে) */}
           <div className="flex items-center gap-2.5">
-            <MessageSquare className="w-5 h-5 shrink-0" />
-            <div className="text-xs">
-              <div className="font-extrabold">New Message from {chatAlertBanner.senderName}</div>
-              <div className="opacity-90 line-clamp-1">{chatAlertBanner.text}</div>
-            </div>
-          </div>
-          <span className="bg-white text-emerald-800 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
-            Reply
-          </span>
-        </div>
-      )}
-
-      {/* CLEAN TOP HEADER */}
-      <header className={`bg-gradient-to-r ${currentTheme.headerBg} text-white px-4 py-3 shadow-lg flex justify-between items-center sticky top-0 z-40`}>
-        <div
-          onClick={() => setActiveTab("radar")}
-          className="flex items-center gap-2.5 cursor-pointer"
-        >
-          <RedPulseLogo size={34} />
-          <div>
-            <h1 className="text-lg font-extrabold tracking-tight leading-none">RedPulse</h1>
-            <span className="text-[10px] text-rose-100 font-medium flex items-center gap-1">
-              <Globe className="w-2.5 h-2.5" /> BD Blood Radar • রক্তের নেটওয়ার্ক
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 relative">
-          {/* Notification Bell */}
-          <button
-            onClick={() => setShowNotifDrawer(!showNotifDrawer)}
-            className="relative p-2 bg-white/15 hover:bg-white/25 rounded-full transition"
-            title="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            {(nationwideMatchingReqs.length > 0 || unreadChatCount > 0) && (
-              <span className="absolute -top-1 -right-1 bg-amber-400 text-slate-950 text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center animate-bounce">
-                {nationwideMatchingReqs.length + unreadChatCount}
-              </span>
-            )}
-          </button>
-
-          {/* 5-Theme Switcher Button */}
-          <button
-            onClick={() => setShowThemePicker(!showThemePicker)}
-            className="p-2 bg-white/15 hover:bg-white/25 rounded-full transition"
-            title="Choose Theme"
-          >
-            <Palette className="w-4 h-4" />
-          </button>
-
-          {/* Theme Dropdown */}
-          {showThemePicker && (
-            <div
-              className={`absolute right-10 top-12 w-48 rounded-2xl shadow-2xl border p-2 z-50 text-xs font-bold space-y-1 ${cardBg}`}
+            <button
+              onClick={() => setShowNotifDrawer(true)}
+              className={`relative p-2.5 rounded-2xl border ${theme.card} active:scale-95 transition-transform`}
+              title="Notifications"
             >
-              <div className="px-2 py-1 text-[10px] uppercase tracking-wider opacity-60">
-                Select App Theme
-              </div>
-              {Object.entries(APP_THEMES).map(([key, th]) => (
-                <button
-                  key={key}
-                  onClick={() => {
-                    setThemeKey(key);
-                    setShowThemePicker(false);
-                  }}
-                  className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between ${
-                    themeKey === key ? "bg-red-600 text-white" : "hover:bg-slate-500/10"
-                  }`}
-                >
-                  <span>{th.label}</span>
-                  {themeKey === key && <CheckCircle2 className="w-3.5 h-3.5" />}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* 3-Dot More Menu Button */}
-          <button
-            onClick={() => setShowMoreMenu(!showMoreMenu)}
-            className="relative p-2 bg-white/15 hover:bg-white/25 rounded-full transition"
-            title="More Options"
-          >
-            <MoreVertical className="w-4 h-4" />
-            {currentUser.isAdmin && pendingAdminRequests.length + pendingContactRequests.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-purple-400 text-slate-950 text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">
-                {pendingAdminRequests.length + pendingContactRequests.length}
-              </span>
-            )}
-          </button>
-
-          {/* 3-Dot Dropdown Drawer */}
-          {showMoreMenu && (
-            <div
-              className={`absolute right-0 top-12 w-72 rounded-2xl shadow-2xl border py-2 z-50 text-xs font-bold ${cardBg}`}
-            >
-              {/* 1. Advantages of Blood Donation */}
-              <button
-                onClick={() => {
-                  setActiveTab("benefits");
-                  setShowMoreMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5 text-rose-500"
-              >
-                <Heart className="w-4 h-4 fill-current" /> রক্তদানের উপকারিতা (Donation Advantages)
-              </button>
-
-              {/* 2. Emergency First-Aid & Interactive Eligibility Quiz */}
-              <button
-                onClick={() => {
-                  setActiveTab("eligibility");
-                  setShowMoreMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5 text-teal-500"
-              >
-                <Stethoscope className="w-4 h-4" /> ফার্স্ট-এইড ও যোগ্যতা কুইজ (Quiz & Guide)
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab("banks");
-                  setShowMoreMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5 border-t border-slate-500/15"
-              >
-                <Building2 className="w-4 h-4 text-red-500" /> Blood Banks & Ambulance (ব্লাড ব্যাংক)
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab("heroes");
-                  setShowMoreMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5"
-              >
-                <Award className="w-4 h-4 text-amber-500" /> Top Heroes (সেরা রক্তদাতা)
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab("reviews");
-                  setShowMoreMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5"
-              >
-                <Star className="w-4 h-4 text-emerald-500" /> User Reviews (মতামত ও রিভিউ)
-              </button>
-
-              <button
-                onClick={handleTestAlarm}
-                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 flex items-center gap-2.5"
-              >
-                <Volume2 className="w-4 h-4 text-blue-500" /> Test Siren Alarm (অ্যালার্ম টেস্ট)
-              </button>
-
-              {currentUser.isAdmin && (
-                <button
-                  onClick={() => {
-                    setActiveTab("admin");
-                    setShowMoreMenu(false);
-                  }}
-                  className="w-full px-4 py-2.5 text-left hover:bg-purple-500/10 text-purple-400 flex items-center justify-between border-t border-slate-500/20"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <Lock className="w-4 h-4" /> Admin Surveillance & Panel
-                  </span>
-                  {pendingAdminRequests.length + pendingContactRequests.length > 0 && (
-                    <span className="bg-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full">
-                      {pendingAdminRequests.length + pendingContactRequests.length} New
-                    </span>
-                  )}
-                </button>
+              <Bell className={`w-5 h-5 ${theme.accentText}`} />
+              {myActiveRequests.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center animate-bounce">
+                  {myActiveRequests.length}
+                </span>
               )}
+            </button>
 
-              <button
-                onClick={handleLogout}
-                className="w-full px-4 py-2.5 text-left hover:bg-red-500/10 text-red-500 flex items-center gap-2.5 border-t border-slate-500/20"
-              >
-                <LogOut className="w-4 h-4" /> Logout (লগআউট)
-              </button>
-            </div>
-          )}
+            <button
+              onClick={cycleTheme}
+              className={`p-2.5 rounded-2xl border ${theme.card} active:scale-95 transition-transform flex items-center gap-1.5`}
+              title="Change Theme"
+            >
+              <Palette className={`w-5 h-5 ${theme.accentText}`} />
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* NATIONWIDE MATCHING NOTIFICATIONS DRAWER */}
-      {showNotifDrawer && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-center items-start pt-16 p-4">
-          <div className={`w-full max-w-md rounded-3xl border p-4 space-y-3 ${cardBg}`}>
-            <div className="flex justify-between items-center border-b pb-2.5 border-slate-500/20">
-              <h3 className="font-extrabold text-sm flex items-center gap-1.5 text-red-500">
-                <Bell className="w-4 h-4" /> Verified {currentUser.bloodGroup} Requests (
-                {nationwideMatchingReqs.length})
-              </h3>
-              <button onClick={() => setShowNotifDrawer(false)} className="p-1.5 rounded-xl bg-red-500/10">
-                <X className="w-4 h-4" />
-              </button>
+      {/* ==================================================================== */}
+      {/* মেইন কনটেন্ট এরিয়া */}
+      {/* ==================================================================== */}
+      <main className="max-w-xl mx-auto px-4 pt-4 relative z-10">
+        {/* ================================================================== */}
+        {/* ট্যাব ১: HOME PAGE (আপনার হাতে আঁকা ওয়্যারফ্রেম অনুযায়ী) */}
+        {/* ================================================================== */}
+        {activeTab === 'home' && (
+          <div className="space-y-6">
+            {/* ১. স্ক্রলিং ব্যানার: Advantages of Blood Donation */}
+            <div className={`overflow-hidden rounded-2xl border py-2.5 px-3 ${theme.card}`}>
+              <div className="animate-marquee text-xs font-bold tracking-wide">
+                🩸 নিয়মিত রক্তদান হৃদরোগের ঝুঁকি কমায় • শরীরে নতুন রক্তকণিকা তৈরিতে সাহায্য করে • প্রতি ৪ মাস (১২০ দিন) পরপর সুস্থ ব্যক্তি রক্তদান করতে পারেন • আপনার এক ব্যাগ রক্ত বাঁচাতে পারে তিনটি প্রাণ! 🩸
+              </div>
             </div>
 
-            {nationwideMatchingReqs.length === 0 ? (
-              <p className={`text-xs text-center py-6 ${subText}`}>
-                No verified blood requests for ({currentUser.bloodGroup}) right now.
-                <br />
-                বর্তমানে আপনার গ্রুপের কোনো জরুরি অনুরোধ নেই।
+            {/* ২. মাঝখানে বড় 3D প্রিমিয়াম বাটন: Request Blood */}
+            <div className="py-6 flex flex-col items-center justify-center">
+              <button
+                onClick={() => setShowRequestModal(true)}
+                className={`w-64 py-5 px-6 rounded-3xl font-black text-lg tracking-wide flex items-center justify-center gap-3 transition-all ${theme.btn3d}`}
+              >
+                <Heart className="w-7 h-7 fill-current animate-pulse" />
+                <span>Request Blood</span>
+              </button>
+              <p className={`text-[11px] mt-3 font-medium ${theme.textSub}`}>
+                জরুরি রক্তের প্রয়োজনে উপরের বাটনে চাপ দিন
               </p>
-            ) : (
-              <div className="space-y-2.5 max-h-80 overflow-y-auto">
-                {nationwideMatchingReqs.map((req) => (
-                  <div
-                    key={req.id}
-                    className={`p-3.5 rounded-2xl border text-xs space-y-2 ${
-                      darkMode ? "bg-slate-800/80 border-slate-700" : "bg-red-50 border-red-200"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="bg-red-600 text-white font-extrabold px-2.5 py-0.5 rounded-lg">
-                        {req.bloodGroup} • {req.bagsNeeded}
-                      </span>
-                      <span className="text-[11px] font-bold text-amber-500">
-                        ~{req.distance} km away
-                      </span>
-                    </div>
-                    <p className="font-bold">Hospital: {req.hospitalName}</p>
-                    <p className={subText}>
-                      Reason: {req.urgencyReason} • Seeker: {req.seekerName}
-                    </p>
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={() => handleAcceptRequest(req)}
-                        className={`flex-1 py-2 rounded-xl text-xs ${btn3DGreen}`}
-                      >
-                        I am Coming • আমি আসছি
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowNotifDrawer(false);
-                          openDirectChat(req.seekerPhone, req.seekerName);
-                        }}
-                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 ${btn3DBlue}`}
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" /> Chat
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* FULL-SCREEN NON-STOP EMERGENCY SIREN ALARM */}
-      {incomingAlert && (
-        <div className="fixed inset-0 z-50 bg-gradient-to-b from-red-900 via-red-700 to-rose-700 text-white flex flex-col items-center justify-center p-5 text-center">
-          <div className="bg-white/15 p-4 rounded-full mb-3 animate-ping">
-            <ShieldAlert className="w-14 h-14 text-white" />
-          </div>
-          <h2 className="text-2xl font-extrabold">
-            {isTestAlert ? "Siren Alarm Test! (অ্যালার্ম টেস্ট)" : "Emergency Blood Needed! (জরুরি রক্ত প্রয়োজন)"}
-          </h2>
-          <div className="bg-white text-red-700 px-5 py-1.5 rounded-full font-extrabold text-base my-2.5 shadow-lg">
-            {incomingAlert.bloodGroup} • {incomingAlert.bagsNeeded} ({incomingAlert.distance} km)
-          </div>
-
-          {incomingAlert.transportSupport && (
-            <span className="bg-emerald-400 text-slate-950 text-xs font-extrabold px-3.5 py-1 rounded-full mb-2 flex items-center gap-1">
-              <Car className="w-3.5 h-3.5" /> Travel cost covered (যাতায়াত খরচ দেওয়া হবে)
-            </span>
-          )}
-
-          <p className="text-xs bg-black/30 px-3.5 py-1.5 rounded-xl mb-2">
-            Reason: {incomingAlert.urgencyReason}
-          </p>
-          <p className="text-base font-bold">Hospital: {incomingAlert.hospitalName}</p>
-          <p className="text-xs opacity-90 mb-6">
-            Seeker: {incomingAlert.seekerName} ({formatPhoneDisplay(incomingAlert.seekerPhone)})
-          </p>
-
-          <div className="flex gap-3 w-full max-w-sm">
-            <button
-              onClick={() => handleAcceptRequest(incomingAlert)}
-              className={`flex-1 py-4 rounded-2xl text-sm ${btn3DGreen}`}
-            >
-              {isTestAlert ? "Stop Alarm • ঠিক আছে" : "I am Coming • আমি আসছি"}
-            </button>
-            <button
-              onClick={() => {
-                stopAlarmSound();
-                setIsTestAlert(false);
-                setIncomingAlert(null);
-              }}
-              className={`px-5 py-4 rounded-2xl text-xs ${btn3DDark}`}
-            >
-              Busy Now • ব্যস্ত
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* DIGITAL DONATION CERTIFICATE */}
-      {showCertificate && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-red-600 via-rose-700 to-red-900 text-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border-4 border-amber-300 relative">
-            <Award className="w-16 h-16 text-amber-300 mx-auto mb-2" />
-            <h3 className="text-xs uppercase tracking-widest text-amber-200 font-bold">
-              RedPulse Lifesaver Certificate
-            </h3>
-            <h2 className="text-2xl font-extrabold mt-1">Thank You, {currentUser.name}!</h2>
-            <p className="text-sm text-rose-100 mt-2">
-              Your blood donation saved a precious life today. Total Donations:{" "}
-              <b>{currentUser.donationCount} Times</b>.
-            </p>
-            <div className="mt-4 bg-white/15 rounded-xl p-2.5 text-xs">
-              Date: {new Date().toLocaleDateString()} • Group: {currentUser.bloodGroup}
             </div>
-            <div className="flex gap-2 mt-5">
-              <button
-                onClick={() => {
-                  navigator.clipboard?.writeText(
-                    `I donated blood today via RedPulse to help save a life! Join now: https://rokto-bondhu-eight.vercel.app`
-                  );
-                  alert("Certificate text copied!");
-                }}
-                className="flex-1 bg-amber-400 text-slate-950 font-extrabold py-3 rounded-2xl text-xs border-b-4 border-amber-600 flex items-center justify-center gap-1"
-              >
-                <Share2 className="w-4 h-4" /> Share (শেয়ার)
-              </button>
-              <button
-                onClick={() => setShowCertificate(false)}
-                className="bg-white/20 px-4 py-3 rounded-2xl text-xs font-bold"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* OPEN LIVE CHAT MODAL (ADMIN MONITORED + UNLOCKED PHONE CALL IF APPROVED) */}
-      {chatRoomId && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
-          <div className={`w-full max-w-md rounded-3xl border overflow-hidden flex flex-col h-[74vh] ${cardBg}`}>
-            <div className="bg-red-600 text-white p-3.5 flex justify-between items-center">
-              <div>
-                <h3 className="font-bold text-sm flex items-center gap-1.5">
-                  {chatPartnerName}
-                  {canViewPhone(chatPartnerPhone) ? (
-                    <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full">
-                      {chatPartnerPhone}
-                    </span>
-                  ) : (
-                    <span className="text-[9px] bg-black/30 px-2 py-0.5 rounded-full">
-                      Number Protected
-                    </span>
-                  )}
+            {/* ৩. কন্ডিশনাল সেকশন: Sending Request / Received Request (না থাকলে সম্পূর্ণ হাইড থাকবে) */}
+            {myActiveRequests.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-wider opacity-75 px-1">
+                  Active Blood Requests ({myActiveRequests.length})
                 </h3>
-                <span className="text-[10px] text-rose-100">
-                  Live Chat Open • Admin Monitored for Safety
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                {canViewPhone(chatPartnerPhone) ? (
-                  <a
-                    href={`tel:${chatPartnerPhone}`}
-                    className="p-2 bg-emerald-500 text-white rounded-xl font-bold text-xs flex items-center gap-1"
-                  >
-                    <Phone className="w-3.5 h-3.5" /> Call
-                  </a>
-                ) : (
-                  <button
-                    onClick={() => handleRequestNumberUnlock(chatPartnerPhone, chatPartnerName)}
-                    className="px-2.5 py-1.5 bg-amber-400 text-slate-950 rounded-xl font-extrabold text-[10px] flex items-center gap-1"
-                  >
-                    <PhoneCall className="w-3 h-3" />
-                    {isContactPending(chatPartnerPhone) ? "Pending..." : "Request Number"}
-                  </button>
-                )}
-
-                <button onClick={() => setChatRoomId(null)} className="p-1.5 bg-red-700 rounded-xl">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 p-3 overflow-y-auto space-y-2">
-              {chatMessages.length === 0 ? (
-                <p className={`text-center text-xs mt-10 ${subText}`}>
-                  Write a message below... (মেসেজ লিখুন)
-                </p>
-              ) : (
-                chatMessages.map((m, idx) => {
-                  const isMe = m.senderPhone === currentUser.phone;
+                {myActiveRequests.map((req) => {
+                  const isMine = req.requesterPhone === currentUser.phone;
                   return (
-                    <div
-                      key={idx}
-                      className={`flex flex-col max-w-[80%] ${
-                        isMe ? "ml-auto items-end" : "mr-auto items-start"
-                      }`}
-                    >
-                      <div
-                        className={`px-3.5 py-2 rounded-2xl text-xs ${
-                          isMe
-                            ? "bg-red-600 text-white rounded-br-none"
-                            : darkMode
-                            ? "bg-slate-800 text-white rounded-bl-none"
-                            : "bg-slate-100 text-slate-800 rounded-bl-none"
-                        }`}
-                      >
-                        {m.text}
-                      </div>
-                      <span className="text-[9px] text-slate-400 mt-0.5">{m.time}</span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <form onSubmit={handleSendChatMessage} className="p-2.5 border-t border-slate-500/20 flex gap-2">
-              <input
-                type="text"
-                placeholder="Type message... (মেসেজ লিখুন)"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                className={`flex-1 border rounded-xl px-3 py-2 text-xs outline-none ${inputBg}`}
-              />
-              <button type="submit" className={`px-4 py-2 rounded-xl text-xs flex items-center gap-1 ${btnPrimary}`}>
-                <Send className="w-3.5 h-3.5" /> Send
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* POST-DONATION STAR RATING MODAL */}
-      {ratingModalDonor && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`rounded-3xl p-5 max-w-xs w-full text-center space-y-3 border ${cardBg}`}>
-            <h3 className="font-extrabold">Rate Your Donor (ডোনারকে রেটিং দিন)</h3>
-            <p className={`text-xs ${subText}`}>
-              How many stars would you give to <b>{ratingModalDonor.donorName}</b>?
-            </p>
-            <div className="flex justify-center gap-2 py-2">
-              {[1, 2, 3, 4, 5].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => setSelectedStars(num)}
-                  className={`p-1 ${selectedStars >= num ? "text-amber-400" : "text-slate-500"}`}
-                >
-                  <Star className="w-7 h-7 fill-current" />
-                </button>
-              ))}
-            </div>
-            <button onClick={handleSubmitRating} className={`w-full py-3 rounded-2xl text-xs ${btnPrimary}`}>
-              Submit Rating • জমা দিন
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MAIN CONTENT AREA */}
-      <main className="max-w-xl mx-auto p-4 space-y-4">
-        {/* ================= TAB 1: CLEAN HIDDEN-MAP RADAR HOME ================= */}
-        {activeTab === "radar" && (
-          <>
-            {/* 1. SLIM 1-LINE LIVE STATUS BAR WITH AUTO-READINESS */}
-            <div className={`rounded-2xl px-4 py-3 border flex items-center justify-between ${cardBg}`}>
-              <div className="flex items-center gap-2.5">
-                <span className="relative flex h-3 w-3">
-                  <span
-                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                      isStandby ? "bg-emerald-400" : "bg-red-400"
-                    }`}
-                  ></span>
-                  <span
-                    className={`relative inline-flex rounded-full h-3 w-3 ${
-                      isStandby ? "bg-emerald-500" : "bg-red-500"
-                    }`}
-                  ></span>
-                </span>
-                <div>
-                  <div className="text-xs font-extrabold flex items-center gap-1.5">
-                    <span>{onlineDonorsList.length} Online</span>
-                    <span className="text-slate-400">•</span>
-                    <span className={isStandby ? "text-emerald-500" : "text-red-500"}>
-                      {isStandby ? "Radar ON (চালু)" : "Radar OFF (বন্ধ)"}
-                    </span>
-                  </div>
-                  <p className={`text-[10px] ${subText}`}>
-                    {!myReadiness.ready
-                      ? `Not Ready: ${myReadiness.reason}`
-                      : "Ready to Donate • Turn ON for siren alerts"}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  if (!isStandby && !myReadiness.ready) {
-                    alert(
-                      `You are currently Not Ready to turn on Radar:\n${myReadiness.reason}\n(Update your profile if your health status has changed)`
-                    );
-                    return;
-                  }
-                  unlockAudioEngine();
-                  setIsStandby(!isStandby);
-                }}
-                className={`px-3.5 py-2 rounded-xl text-[11px] ${
-                  isStandby ? btn3DDark : btn3DGreen
-                }`}
-              >
-                {isStandby ? "Turn OFF" : "Turn ON • চালু"}
-              </button>
-            </div>
-
-            {/* Nationwide Alert Strip (When Radar is OFF) */}
-            {nationwideMatchingReqs.length > 0 && !isStandby && (
-              <div
-                onClick={() => setShowNotifDrawer(true)}
-                className="bg-amber-500/15 border border-amber-500/40 text-amber-500 px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-extrabold cursor-pointer"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Bell className="w-4 h-4 animate-bounce" />
-                  {nationwideMatchingReqs.length} urgent {currentUser.bloodGroup} calls (জরুরি অনুরোধ)
-                </span>
-                <span>View →</span>
-              </div>
-            )}
-
-            {/* ACTIVE DONOR MISSION CARD (PHONE UNLOCKED ONLY AFTER ADMIN APPROVAL) */}
-            {activeMission && (
-              <div className="bg-amber-500/15 border-2 border-amber-500 p-4 rounded-3xl space-y-3">
-                <div className="font-extrabold text-amber-500 text-sm">
-                  Active Mission: {activeMission.hospitalName} ({activeMission.bloodGroup})
-                </div>
-                <div className="text-[11px] font-semibold flex items-center gap-1 text-slate-400">
-                  <EyeOff className="w-3.5 h-3.5 text-red-500" />
-                  Seeker Phone: {formatPhoneDisplay(activeMission.seekerPhone)}
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {canViewPhone(activeMission.seekerPhone) ? (
-                    <a
-                      href={`tel:${activeMission.seekerPhone}`}
-                      className={`py-2.5 rounded-xl text-center text-xs ${btn3DGreen}`}
-                    >
-                      Call ({activeMission.seekerPhone})
-                    </a>
-                  ) : (
-                    <button
-                      onClick={() =>
-                        handleRequestNumberUnlock(activeMission.seekerPhone, activeMission.seekerName)
-                      }
-                      className={`py-2.5 rounded-xl text-center text-[10px] flex items-center justify-center gap-1 ${btn3DGreen}`}
-                    >
-                      <PhoneCall className="w-3 h-3" />
-                      {isContactPending(activeMission.seekerPhone) ? "Pending..." : "Request Number"}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => openDirectChat(activeMission.seekerPhone, activeMission.seekerName)}
-                    className={`py-2.5 rounded-xl text-center text-xs ${btn3DRed}`}
-                  >
-                    Live Chat
-                  </button>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${activeMission.hospitalLat},${activeMission.hospitalLng}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`py-2.5 rounded-xl text-center text-xs ${btn3DBlue}`}
-                  >
-                    Map (ম্যাপ)
-                  </a>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {["On my way (আসছি)", "10 mins left (১০ মিনিট বাকি)", "At hospital gate (গেটে আছি)"].map(
-                    (msg) => (
-                      <button
-                        key={msg}
-                        onClick={() => sendQuickStatus(msg)}
-                        className={`border text-[11px] px-2.5 py-1 rounded-xl font-semibold ${
-                          darkMode
-                            ? "bg-slate-800 border-slate-700 text-slate-200"
-                            : "bg-white border-amber-300 text-amber-900"
-                        }`}
-                      >
-                        {msg}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* 2. CLEAN BOTTOM-SHEET STYLE REQUEST CARD */}
-            <div className={`rounded-3xl border p-4 space-y-4 ${cardBg}`}>
-              {!activeRequestId && (
-                <div className="flex border-b border-slate-500/20">
-                  <button
-                    type="button"
-                    onClick={() => setRequestType("emergency")}
-                    className={`flex-1 pb-2.5 text-xs font-extrabold border-b-2 transition ${
-                      requestType === "emergency"
-                        ? "border-red-500 text-red-500"
-                        : `border-transparent ${subText}`
-                    }`}
-                  >
-                    Emergency (জরুরি রক্ত)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRequestType("scheduled")}
-                    className={`flex-1 pb-2.5 text-xs font-extrabold border-b-2 transition ${
-                      requestType === "scheduled"
-                        ? "border-red-500 text-red-500"
-                        : `border-transparent ${subText}`
-                    }`}
-                  >
-                    Schedule (শিডিউল • {scheduledList.length})
-                  </button>
-                </div>
-              )}
-
-              {!activeRequestId ? (
-                <>
-                  <form onSubmit={handleSendRequest} className="space-y-3.5">
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-bold mb-1">
-                          Blood (রক্তের গ্রুপ)
-                        </label>
-                        <select
-                          value={neededBlood}
-                          onChange={(e) => setNeededBlood(e.target.value)}
-                          className="w-full border border-red-300 rounded-xl p-2.5 font-extrabold text-red-600 bg-red-50 text-sm"
-                        >
-                          {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
-                            <option key={bg} value={bg}>
-                              {bg}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="col-span-2">
-                        <label className="block text-[11px] font-bold mb-1">
-                          Hospital Name (হাসপাতালের নাম)
-                        </label>
-                        <input
-                          required
-                          type="text"
-                          placeholder="EX: Enam Medical, Savar"
-                          value={hospitalName}
-                          onChange={(e) => setHospitalName(e.target.value)}
-                          className={`w-full border rounded-xl p-2.5 text-sm outline-none ${inputBg}`}
-                        />
-                      </div>
-                    </div>
-
-                    {requestType === "scheduled" && (
-                      <div className="grid grid-cols-2 gap-2.5 bg-amber-500/10 p-3 rounded-2xl border border-amber-500/30">
-                        <div>
-                          <label className="block text-[11px] font-bold">Date (তারিখ)</label>
-                          <input
-                            required
-                            type="date"
-                            value={scheduledDate}
-                            onChange={(e) => setScheduledDate(e.target.value)}
-                            className={`mt-1 w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold">Time (সময়)</label>
-                          <input
-                            required
-                            type="time"
-                            value={scheduledTime}
-                            onChange={(e) => setScheduledTime(e.target.value)}
-                            className={`mt-1 w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-xs pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setShowExtraFormFields(!showExtraFormFields)}
-                        className={`font-bold flex items-center gap-1 hover:text-red-500 ${subText}`}
-                      >
-                        <span>+ Add details (আরও তথ্য)</span>
-                        {showExtraFormFields ? (
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        ) : (
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-
-                      {requestType === "emergency" && (
-                        <button
-                          type="button"
-                          onClick={() => setShowLocationMap(!showLocationMap)}
-                          className="font-bold text-red-500 flex items-center gap-1 bg-red-500/10 px-2.5 py-1 rounded-lg"
-                        >
-                          <MapPin className="w-3.5 h-3.5" />
-                          {showLocationMap ? "Hide Map (ম্যাপ লুকান)" : "Set on Map (ম্যাপে পিন)"}
-                        </button>
-                      )}
-                    </div>
-
-                    {showExtraFormFields && (
-                      <div className="space-y-3 pt-2 border-t border-slate-500/20">
-                        <div>
-                          <label className="block text-[11px] font-bold mb-1">
-                            District / Area (জেলা ও এলাকা)
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="EX: Savar, Dhaka / Chittagong"
-                            value={districtName}
-                            onChange={(e) => setDistrictName(e.target.value)}
-                            className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[11px] font-bold mb-1">Bags (কত ব্যাগ)</label>
-                            <select
-                              value={bagsNeeded}
-                              onChange={(e) => setBagsNeeded(e.target.value)}
-                              className={`w-full border rounded-xl p-2 text-xs font-semibold ${inputBg}`}
-                            >
-                              <option value="1 Bag">1 Bag (১ ব্যাগ)</option>
-                              <option value="2 Bags">2 Bags (২ ব্যাগ)</option>
-                              <option value="3+ Bags">3+ Bags (৩+ ব্যাগ)</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] font-bold mb-1">Reason (কারণ)</label>
-                            <select
-                              value={urgencyReason}
-                              onChange={(e) => setUrgencyReason(e.target.value)}
-                              className={`w-full border rounded-xl p-2 text-xs font-semibold ${inputBg}`}
-                            >
-                              <option value="Emergency Surgery">Surgery (অপারেশন)</option>
-                              <option value="Delivery / C-Section">Delivery (ডেলিভারি)</option>
-                              <option value="Road Accident">Accident (দুর্ঘটনা)</option>
-                              <option value="Thalassemia">Thalassemia (থ্যালাসেমিয়া)</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <label className="flex items-center gap-2 bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/30 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={transportSupport}
-                            onChange={(e) => setTransportSupport(e.target.checked)}
-                            className="accent-emerald-600 w-4 h-4"
-                          />
-                          <span className="text-xs font-semibold flex items-center gap-1">
-                            <Car className="w-4 h-4 text-emerald-500" /> Travel cost covered (যাতায়াত খরচ দেওয়া হবে)
+                    <div key={req.id} className={`rounded-3xl border p-4 backdrop-blur-md ${theme.card}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-black border ${theme.badge}`}>
+                          {isMine ? '📤 Sending Request' : '📥 Received Request'} • {req.bloodGroup}
+                        </span>
+                        {req.isRareSOS && (
+                          <span className="px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black animate-pulse">
+                            RARE SOS
                           </span>
-                        </label>
-                      </div>
-                    )}
-
-                    {requestType === "emergency" && showLocationMap && (
-                      <div className="space-y-2 pt-2 border-t border-slate-500/20">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Search hospital on map..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className={`flex-1 border rounded-xl p-2 text-xs ${inputBg}`}
-                          />
-                          <button
-                            type="button"
-                            onClick={handleSearchHospital}
-                            disabled={isSearchingMap}
-                            className={`px-3 rounded-xl text-xs flex items-center gap-1 ${btn3DDark}`}
-                          >
-                            <Search className="w-3.5 h-3.5" /> {isSearchingMap ? "..." : "Find"}
-                          </button>
-                        </div>
-
-                        <div className="h-44 rounded-2xl overflow-hidden border border-slate-500/30">
-                          <MapContainer center={hospitalPos} zoom={14} className="h-full w-full">
-                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                            <MapRecenter center={hospitalPos} />
-                            <LocationPicker setHospitalPos={setHospitalPos} />
-                            <Marker position={hospitalPos}>
-                              <Popup>Hospital Location</Popup>
-                            </Marker>
-                            <Circle
-                              center={hospitalPos}
-                              radius={5000}
-                              pathOptions={{ color: "#dc2626", fillOpacity: 0.08 }}
-                            />
-                          </MapContainer>
-                        </div>
-                        <p className={`text-[10px] text-center ${subText}`}>
-                          Tap anywhere on map to pin exact hospital location
-                        </p>
-                      </div>
-                    )}
-
-                    <button type="submit" className={`w-full py-3.5 rounded-2xl text-xs ${btnPrimary}`}>
-                      {requestType === "emergency"
-                        ? "Request Blood Now • রক্তের অনুরোধ পাঠান"
-                        : "Post Schedule • শিডিউল পোস্ট করুন"}
-                    </button>
-                  </form>
-
-                  {/* Show Scheduled List ONLY inside Schedule Tab */}
-                  {requestType === "scheduled" && scheduledList.length > 0 && (
-                    <div className="pt-3 border-t border-slate-500/20 space-y-2.5">
-                      <h4 className="text-xs font-extrabold text-amber-500">
-                        Upcoming Scheduled Requests ({scheduledList.length})
-                      </h4>
-                      {scheduledList.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`border rounded-2xl p-3 text-xs space-y-1.5 ${
-                            darkMode ? "bg-slate-800/70 border-slate-700" : "bg-amber-50/70 border-amber-200"
-                          }`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className="bg-red-600 text-white font-extrabold px-2 py-0.5 rounded-lg">
-                              {item.bloodGroup} • {item.bagsNeeded}
-                            </span>
-                            <span className="font-bold text-amber-500">
-                              {item.scheduledDate} ({item.scheduledTime})
-                            </span>
-                          </div>
-                          <p className="font-bold">Hospital: {item.hospitalName}</p>
-                          <div className="pt-1 flex items-center justify-between gap-2">
-                            {item.bookedBy ? (
-                              <span className="text-emerald-500 font-bold">
-                                Booked by: {item.bookedBy}
-                              </span>
-                            ) : item.seekerPhone !== currentUser.phone ? (
-                              <button
-                                onClick={() => {
-                                  update(ref(rtdb, `scheduled_requests/${item.id}`), {
-                                    bookedBy: currentUser.name,
-                                    bookedDonorPhone: currentUser.phone,
-                                  });
-                                  alert("Booked successfully!");
-                                }}
-                                className={`px-3 py-1.5 rounded-xl text-xs ${btn3DGreen}`}
-                              >
-                                I Will Donate • বুক করুন
-                              </button>
-                            ) : (
-                              <span className={subText}>Waiting for donor...</span>
-                            )}
-                            {item.seekerPhone !== currentUser.phone && (
-                              <button
-                                onClick={() => openDirectChat(item.seekerPhone, item.seekerName)}
-                                className={`px-2.5 py-1.5 rounded-xl text-xs ${btn3DBlue}`}
-                              >
-                                Live Chat
-                              </button>
-                            )}
-                            {item.seekerPhone === currentUser.phone && (
-                              <button
-                                onClick={() => remove(ref(rtdb, `scheduled_requests/${item.id}`))}
-                                className="text-red-500 font-bold"
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                /* LIVE TRACKING & ADMIN VERIFICATION STATUS VIEW */
-                <div className="space-y-3">
-                  {liveRequestData?.status === "pending_admin" && (
-                    <div className="bg-amber-500/15 border border-amber-500/40 p-4 rounded-2xl text-center space-y-2">
-                      <Clock className="w-10 h-10 text-amber-500 mx-auto animate-pulse" />
-                      <h3 className="font-extrabold text-amber-500 text-sm">
-                        Waiting for Admin Verification (অ্যাডমিন যাচাই চলছে)
-                      </h3>
-                      <p className={`text-xs ${subText}`}>
-                        To prevent fake alerts, Admin is verifying your request. Once approved, sirens
-                        will alert matching donors immediately.
-                      </p>
-                    </div>
-                  )}
-
-                  {liveRequestData?.status === "searching" && (
-                    <div className="bg-red-500/10 border border-red-400/40 p-4 rounded-2xl text-center space-y-2.5">
-                      <div className="w-11 h-11 bg-red-600 text-white rounded-full flex items-center justify-center mx-auto animate-ping">
-                        <Bell className="w-5 h-5" />
-                      </div>
-                      <h3 className="font-extrabold text-red-500 text-sm">
-                        Verified! Alert Sent to All {liveRequestData?.bloodGroup} Donors
-                      </h3>
-                      <p className={`text-xs ${subText}`}>
-                        Nearby {liveRequestData?.radiusKm || 5} km siren active • Online Donors:{" "}
-                        <b>{onlineDonorsList.length}</b>
-                      </p>
-
-                      {/* One-Tap Social Appeal Share (Phone Number Protected) */}
-                      <div className="flex flex-wrap justify-center gap-2 pt-1">
-                        <button
-                          onClick={() => {
-                            const appealText = `🚨 URGENT BLOOD NEEDED (${liveRequestData.bloodGroup}) 🚨\nHospital: ${liveRequestData.hospitalName}\nBags: ${liveRequestData.bagsNeeded}\nReason: ${liveRequestData.urgencyReason}\n\nRespond safely via RedPulse App: https://rokto-bondhu-eight.vercel.app`;
-                            navigator.clipboard?.writeText(appealText);
-                            alert("Emergency appeal copied! Paste on Facebook or WhatsApp.");
-                          }}
-                          className={`text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 ${btn3DBlue}`}
-                        >
-                          <Copy className="w-3.5 h-3.5" /> Copy Appeal Post (শেয়ার টেক্সট)
-                        </button>
-
-                        {(liveRequestData?.radiusKm || 5) < 10 && (
-                          <button
-                            onClick={() => handleExpandRadius(10)}
-                            className="bg-amber-500 text-slate-950 text-xs font-extrabold px-3 py-1.5 rounded-xl flex items-center gap-1"
-                          >
-                            <PlusCircle className="w-3.5 h-3.5" /> Expand 10 km
-                          </button>
                         )}
                       </div>
-                    </div>
-                  )}
 
-                  {liveRequestData?.status === "accepted" && (
-                    <div className="bg-emerald-500/15 border border-emerald-500/40 p-4 rounded-2xl space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2.5">
-                          {liveRequestData?.donorPhoto ? (
-                            <img
-                              src={liveRequestData.donorPhoto}
-                              alt=""
-                              className="w-11 h-11 rounded-full object-cover border-2 border-emerald-500"
-                            />
-                          ) : (
-                            <div className="w-11 h-11 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold">
-                              {liveRequestData?.donorName?.[0]}
-                            </div>
-                          )}
-                          <div>
-                            <div className="flex items-center gap-1 text-emerald-500 font-extrabold text-sm">
-                              {liveRequestData?.donorName}
-                              {liveRequestData?.donorVerified && (
-                                <ShieldCheck className="w-4 h-4 text-blue-500" />
+                      <h4 className="font-bold text-sm">{req.patientName} ({req.bags} ব্যাগ)</h4>
+                      <p className={`text-xs flex items-center gap-1 mt-1 ${theme.textSub}`}>
+                        <MapPin className="w-3.5 h-3.5" /> {req.hospital}
+                      </p>
+
+                      {/* স্ট্যাটাস ও অ্যাকশন বাটনসমূহ */}
+                      <div className="mt-3 pt-3 border-t border-slate-200/50 flex flex-wrap items-center justify-between gap-2">
+                        {req.status === 'pending' && !isMine && (
+                          <button
+                            onClick={() => handleAcceptBloodRequest(req)}
+                            className={`px-4 py-2 rounded-xl text-xs font-black ${theme.btn3d}`}
+                          >
+                            Accept & Share Live Location
+                          </button>
+                        )}
+
+                        {req.status === 'accepted' && (
+                          <div className="flex flex-wrap items-center gap-2 w-full justify-between">
+                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4" /> গৃহীত: {req.acceptedByName}
+                            </span>
+
+                            <div className="flex items-center gap-2">
+                              {req.donorLiveLocation && (
+                                <button
+                                  onClick={() => setTrackingRequestModal(req)}
+                                  className="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold flex items-center gap-1 shadow-md"
+                                >
+                                  <Navigation className="w-3.5 h-3.5" /> Track Live Location
+                                </button>
+                              )}
+
+                              {isMine && (
+                                <button
+                                  onClick={() => handleCompleteDonation(req)}
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md"
+                                >
+                                  ✓ Complete & Verify
+                                </button>
                               )}
                             </div>
-                            <span className="inline-block bg-emerald-500/20 text-emerald-400 text-[11px] px-2 py-0.5 rounded-md font-semibold mt-0.5">
-                              {liveRequestData?.donorStatusMsg || "Coming..."}
-                            </span>
-                            <div className="text-[10px] text-slate-400 mt-0.5">
-                              Phone: {formatPhoneDisplay(liveRequestData?.donorPhone)}
-                            </div>
-                          </div>
-                        </div>
-
-                        {liveDistanceKm !== null && (
-                          <div className="text-right">
-                            <div className={`text-[10px] ${subText}`}>Live Distance</div>
-                            <div className="font-extrabold text-emerald-500 text-xs">
-                              {liveDistanceKm.toFixed(1)} km (~{estimatedMinutes}m)
-                            </div>
                           </div>
                         )}
-                      </div>
 
-                      <div className="grid grid-cols-3 gap-2">
-                        {canViewPhone(liveRequestData?.donorPhone) ? (
-                          <a
-                            href={`tel:${liveRequestData?.donorPhone}`}
-                            className={`py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 ${btn3DGreen}`}
-                          >
-                            <Phone className="w-3 h-3" /> Call
-                          </a>
-                        ) : (
-                          <button
-                            onClick={() =>
-                              handleRequestNumberUnlock(
-                                liveRequestData?.donorPhone,
-                                liveRequestData?.donorName
-                              )
-                            }
-                            className={`py-2 rounded-xl text-[10px] flex items-center justify-center gap-1 ${btn3DGreen}`}
-                          >
-                            <PhoneCall className="w-3 h-3" />
-                            {isContactPending(liveRequestData?.donorPhone)
-                              ? "Pending..."
-                              : "Request Number"}
-                          </button>
+                        {req.status === 'pending' && isMine && (
+                          <span className="text-xs font-semibold text-amber-600">
+                            ⏳ ডোনারের সাড়ার জন্য অপেক্ষা করা হচ্ছে...
+                          </span>
                         )}
-                        <button
-                          onClick={() =>
-                            openDirectChat(liveRequestData?.donorPhone, liveRequestData?.donorName)
-                          }
-                          className={`py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 ${btn3DRed}`}
-                        >
-                          <MessageSquare className="w-3 h-3" /> Live Chat
-                        </button>
-                        <button
-                          onClick={() => setShowLiveTrackingMap(!showLiveTrackingMap)}
-                          className={`py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 ${btn3DBlue}`}
-                        >
-                          <MapPin className="w-3 h-3" /> {showLiveTrackingMap ? "Hide Map" : "Live Map"}
-                        </button>
-                      </div>
-
-                      {showLiveTrackingMap && (
-                        <div className="h-48 rounded-2xl overflow-hidden border border-slate-500/30">
-                          <MapContainer center={hospitalPos} zoom={14} className="h-full w-full">
-                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                            <Marker position={hospitalPos}>
-                              <Popup>Hospital</Popup>
-                            </Marker>
-                            {liveRequestData?.donorLat && (
-                              <Marker position={[liveRequestData.donorLat, liveRequestData.donorLng]}>
-                                <Popup>Donor Live Location: {liveRequestData.donorName}</Popup>
-                              </Marker>
-                            )}
-                          </MapContainer>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    {liveRequestData?.status === "accepted" && (
-                      <button
-                        onClick={() => {
-                          const donorInfo = {
-                            donorId: liveRequestData.donorId,
-                            donorName: liveRequestData.donorName,
-                          };
-                          update(ref(rtdb, `emergency_requests/${activeRequestId}`), {
-                            status: "completed",
-                          });
-                          localStorage.removeItem("redpulse_active_req");
-                          setActiveRequestId(null);
-                          setShowLiveTrackingMap(false);
-                          setRatingModalDonor(donorInfo);
-                        }}
-                        className={`flex-1 py-3 rounded-2xl text-xs ${btn3DBlue}`}
-                      >
-                        Blood Managed / Received • সম্পন্ন
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        remove(ref(rtdb, `emergency_requests/${activeRequestId}`));
-                        localStorage.removeItem("redpulse_active_req");
-                        setActiveRequestId(null);
-                        setShowLiveTrackingMap(false);
-                      }}
-                      className={`px-4 py-3 rounded-2xl text-xs ${btn3DDark}`}
-                    >
-                      Cancel / Managed (বাতিল)
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* ================= TAB 2: ALL DONORS DIRECTORY (AUTO-READINESS + GENDER + ADMIN NUMBER UNLOCK) ================= */}
-        {activeTab === "directory" && (
-          <div className="space-y-3">
-            <div className={`rounded-3xl p-4 border space-y-3 ${cardBg}`}>
-              <div className="flex items-center justify-between">
-                <h2 className="font-extrabold flex items-center gap-2 text-sm">
-                  <Users className="text-red-500 w-5 h-5" /> All Donors • রক্তদাতা তালিকা (
-                  {filteredDirectory.length})
-                </h2>
-                <span className="text-[10px] bg-slate-500/15 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                  <EyeOff className="w-3 h-3 text-red-500" /> Admin Number Lock
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={filterBlood}
-                  onChange={(e) => setFilterBlood(e.target.value)}
-                  className="border border-red-300 rounded-xl p-2 text-xs font-extrabold text-red-600 bg-red-50"
-                >
-                  <option value="ALL">All Blood Groups</option>
-                  {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
-                    <option key={bg} value={bg}>
-                      {bg}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={filterGender}
-                  onChange={(e) => setFilterGender(e.target.value)}
-                  className={`border rounded-xl p-2 text-xs font-bold ${inputBg}`}
-                >
-                  <option value="ALL">All Genders (সকল)</option>
-                  <option value="Male">♂ Male (পুরুষ)</option>
-                  <option value="Female">♀ Female (মহিলা)</option>
-                </select>
-              </div>
-
-              <input
-                type="text"
-                placeholder="Search by District or Area (EX: Savar, Dhaka)"
-                value={filterArea}
-                onChange={(e) => setFilterArea(e.target.value)}
-                className={`w-full border rounded-xl p-2 text-xs outline-none ${inputBg}`}
-              />
-            </div>
-
-            {loadingUsers ? (
-              <p className={`text-center text-sm py-6 ${subText}`}>Loading donors...</p>
-            ) : (
-              <div className="space-y-2.5">
-                {filteredDirectory.map((donor) => {
-                  const readiness = evaluateDonorReadiness(donor);
-                  const avgRating =
-                    donor.ratingCount > 0 ? (donor.ratingSum / donor.ratingCount).toFixed(1) : null;
-                  const donorGender = donor.gender || "Male";
-                  const unlocked = canViewPhone(donor.phone);
-
-                  return (
-                    <div
-                      key={donor.id}
-                      className={`rounded-2xl p-3.5 border flex items-center justify-between gap-2 ${cardBg}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {donor.photoUrl ? (
-                          <img
-                            src={donor.photoUrl}
-                            alt=""
-                            className="w-12 h-12 rounded-full object-cover border border-red-300"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-red-500/15 text-red-500 flex items-center justify-center font-extrabold text-lg">
-                            {donor.name?.[0]}
-                          </div>
-                        )}
-                        <div>
-                          <div className="flex items-center gap-1.5 font-bold text-sm flex-wrap">
-                            <span>{donor.name}</span>
-                            {donor.verified && <ShieldCheck className="w-4 h-4 text-blue-500" />}
-                            <span
-                              className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                                donorGender === "Female"
-                                  ? "bg-pink-500/20 text-pink-400"
-                                  : "bg-sky-500/20 text-sky-400"
-                              }`}
-                            >
-                              {donorGender === "Female" ? "♀ Female" : "♂ Male"}
-                            </span>
-                            {avgRating && (
-                              <span className="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-bold">
-                                ★ {avgRating}
-                              </span>
-                            )}
-                          </div>
-                          <p className={`text-xs ${subText}`}>{donor.address}</p>
-                          <p className="text-[10px] text-slate-400 font-medium">
-                            {formatPhoneDisplay(donor.phone)}
-                          </p>
-                          <div className="mt-1 flex items-center gap-2 flex-wrap">
-                            {readiness.ready ? (
-                              <span className="text-[10px] bg-emerald-500/15 text-emerald-500 px-2 py-0.5 rounded-full font-bold">
-                                Ready (প্রস্তুত)
-                              </span>
-                            ) : (
-                              <span className="text-[10px] bg-amber-500/15 text-amber-500 px-2 py-0.5 rounded-full font-semibold">
-                                Not Ready: {readiness.reason}
-                              </span>
-                            )}
-                            {donor.phone !== currentUser.phone && (
-                              <button
-                                onClick={() => handleReportUser(donor)}
-                                className="text-[10px] text-slate-400 hover:text-red-500 flex items-center gap-0.5"
-                              >
-                                <AlertTriangle className="w-3 h-3" /> Report
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <span className="bg-red-600 text-white font-extrabold text-xs px-2.5 py-1 rounded-lg">
-                          {donor.bloodGroup}
-                        </span>
-                        <div className="flex gap-1">
-                          {unlocked ? (
-                            <a
-                              href={`tel:${donor.phone}`}
-                              className={`p-1.5 rounded-lg ${btn3DGreen}`}
-                              title="Call Now"
-                            >
-                              <Phone className="w-3.5 h-3.5" />
-                            </a>
-                          ) : (
-                            donor.phone !== currentUser.phone && (
-                              <button
-                                onClick={() => handleRequestNumberUnlock(donor.phone, donor.name)}
-                                className={`px-2 py-1.5 rounded-lg text-[9px] font-bold flex items-center gap-0.5 ${btn3DBlue}`}
-                                title="Request Admin Approval for Number"
-                              >
-                                <PhoneCall className="w-3 h-3" />
-                                {isContactPending(donor.phone) ? "Pending" : "Req No."}
-                              </button>
-                            )
-                          )}
-                          {donor.phone !== currentUser.phone && (
-                            <button
-                              onClick={() => openDirectChat(donor.phone, donor.name)}
-                              className={`px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 ${btn3DRed}`}
-                              title="Open Live Chat"
-                            >
-                              <MessageSquare className="w-3 h-3" /> Chat
-                            </button>
-                          )}
-                        </div>
                       </div>
                     </div>
                   );
@@ -3099,1362 +1214,1665 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= NEW SECTION A: ADVANTAGES OF BLOOD DONATION (3-DOT MENU) ================= */}
-        {activeTab === "benefits" && (
-          <div className="space-y-4">
-            <div className={`bg-gradient-to-br ${currentTheme.headerBg} text-white rounded-3xl p-5 shadow-xl relative overflow-hidden`}>
-              <Sparkles className="w-24 h-24 text-white/10 absolute -top-4 -right-4 pointer-events-none" />
-              <div className="flex items-center gap-2 text-amber-300 text-xs font-extrabold uppercase tracking-wider mb-1">
-                <Heart className="w-4 h-4 fill-current" /> Donate Blood, Save Lives
-              </div>
-              <h2 className="text-xl font-extrabold">
-                রক্তদানের উপকারিতা ও অনুপ্রেরণা (Advantages)
-              </h2>
-              <p className="text-xs text-rose-100 mt-1.5 leading-relaxed">
-                রক্তদান শুধু একজন মুমূর্ষু রোগীর জীবনই বাঁচায় না, বরং রক্তদাতার নিজের শরীর ও মনকেও সুস্থ রাখে। জেনে নিন নিয়মিত রক্তদানের বৈজ্ঞানিক ও মানবিক উপকারিতা:
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {DONATION_BENEFITS.map((item, idx) => (
-                <div key={idx} className={`rounded-3xl p-4 border space-y-2 ${cardBg}`}>
-                  <div className="flex justify-between items-start gap-2">
-                    <h3 className="font-extrabold text-sm text-red-500">
-                      {idx + 1}. {item.titleBn}
-                    </h3>
-                    <span className="bg-emerald-500/15 text-emerald-500 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shrink-0">
-                      {item.badge}
-                    </span>
-                  </div>
-                  <p className={`text-[11px] font-semibold ${subText}`}>{item.titleEn}</p>
-                  <p className="text-xs leading-relaxed">{item.desc}</p>
-                  <div className="pt-1 flex justify-end">
-                    <button
-                      onClick={() => {
-                        const shareText = `🩸 ${item.titleBn}\n${item.desc}\n\nরক্তদানে এগিয়ে আসুন, জীবন বাঁচান — RedPulse: https://rokto-bondhu-eight.vercel.app`;
-                        navigator.clipboard?.writeText(shareText);
-                        alert("অনুপ্রেরণামূলক বার্তাটি কপি হয়েছে! এখন ফেসবুক বা হোয়াটসঅ্যাপে শেয়ার করুন।");
-                      }}
-                      className="text-[11px] font-bold text-blue-500 hover:underline flex items-center gap-1"
-                    >
-                      <Share2 className="w-3.5 h-3.5" /> শেয়ার করে অন্যকে উৎসাহিত করুন
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ================= NEW SECTION B: EMERGENCY FIRST-AID & INTERACTIVE ELIGIBILITY QUIZ ================= */}
-        {activeTab === "eligibility" && (
-          <div className="space-y-4">
-            {/* Interactive Eligibility Quiz */}
-            <div className={`rounded-3xl p-5 border space-y-3 ${cardBg}`}>
-              <h2 className="font-extrabold text-base flex items-center gap-2 text-teal-500">
-                <ClipboardCheck className="w-5 h-5" /> রক্তদানের যোগ্যতা কুইজ (Eligibility Quiz)
-              </h2>
-              <p className={`text-xs ${subText}`}>
-                আপনি আজ রক্ত দিতে পারবেন কি না তা নিচের ৫টি তথ্য দিয়ে যাচাই করুন:
-              </p>
-
-              <form onSubmit={handleRunEligibilityQuiz} className="space-y-3">
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-[11px] font-bold mb-1">বয়স (Age)</label>
-                    <input
-                      required
-                      type="number"
-                      placeholder="EX: 24"
-                      value={quizAge}
-                      onChange={(e) => setQuizAge(e.target.value)}
-                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold mb-1">ওজন (Weight kg)</label>
-                    <input
-                      required
-                      type="number"
-                      placeholder="EX: 58"
-                      value={quizWeight}
-                      onChange={(e) => setQuizWeight(e.target.value)}
-                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold mb-1">বিরতি (Days)</label>
-                    <input
-                      required
-                      type="number"
-                      placeholder="120+"
-                      value={quizDays}
-                      onChange={(e) => setQuizDays(e.target.value)}
-                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                    />
-                  </div>
+        {/* ================================================================== */}
+        {/* ট্যাব ২: REDPULSE TAB (৩-ডট মেনু ছাড়া ৯টি 3D প্রিমিয়াম গ্রিড কার্ড) */}
+        {/* ================================================================== */}
+        {activeTab === 'redpulse' && (
+          <div>
+            {!redpulseSubView ? (
+              <div className="space-y-4">
+                <div className="px-1">
+                  <h2 className="text-lg font-black">RedPulse Hub</h2>
+                  <p className={`text-xs ${theme.textSub}`}>প্রয়োজনীয় সেবা নির্বাচন করুন</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[11px] font-bold mb-1">হিমোগ্লোবিন মাত্রা</label>
-                    <select
-                      value={quizHemo}
-                      onChange={(e) => setQuizHemo(e.target.value)}
-                      className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
-                    >
-                      <option value="Normal">স্বাভাবিক (Normal 12.5+)</option>
-                      <option value="Low">কম (Low Hemoglobin)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold mb-1">কোনো ওষুধ চলছে?</label>
-                    <select
-                      value={quizMed}
-                      onChange={(e) => setQuizMed(e.target.value)}
-                      className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
-                    >
-                      <option value="No">না, সুস্থ আছি (No)</option>
-                      <option value="Yes">হ্যাঁ, ওষুধ চলছে (Yes)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <button type="submit" className={`w-full py-3 rounded-2xl text-xs ${btnPrimary}`}>
-                  যোগ্যতা যাচাই করুন • Check Eligibility
-                </button>
-              </form>
-
-              {quizResult && (
-                <div
-                  className={`p-3.5 rounded-2xl border text-xs font-bold ${
-                    quizResult.ok
-                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
-                      : "bg-amber-500/15 border-amber-500/40 text-amber-500"
-                  }`}
-                >
-                  {quizResult.msg}
-                </div>
-              )}
-            </div>
-
-            {/* Before & After Blood Donation Guidelines */}
-            <div className={`rounded-3xl p-5 border space-y-2.5 ${cardBg}`}>
-              <h3 className="font-extrabold text-sm text-red-500 flex items-center gap-1.5">
-                <HeartPulse className="w-4 h-4" /> রক্তদানের আগে ও পরে করণীয় (সহজ বাংলা গাইডলাইন)
-              </h3>
-              <ul className="space-y-2 text-xs leading-relaxed list-disc pl-4">
-                <li>
-                  <b>রক্তদানের আগে:</b> খালি পেটে রক্ত দেবেন না। রক্তদানের ২-৩ ঘণ্টা আগে পুষ্টিকর খাবার ও পর্যাপ্ত পানি পান করুন। আগের রাতে ভালো ঘুম নিশ্চিত করুন।
-                </li>
-                <li>
-                  <b>রক্তদানের পর:</b> রক্ত দেওয়ার পর অন্তত ১৫-২০ মিনিট বিশ্রাম নিন এবং জুস, ডাবের পানি বা স্যালাইন পান করুন।
-                </li>
-                <li>
-                  <b>পরবর্তী বিরতি:</b> রক্তদানের পর ২৪ ঘণ্টা ভারী ব্যায়াম এড়িয়ে চলুন এবং পরবর্তী রক্তদানের জন্য <b>{COOLDOWN_DAYS} দিন (৪ মাস)</b> অপেক্ষা করুন।
-                </li>
-              </ul>
-            </div>
-
-            {/* Emergency First-Aid Guide */}
-            <div className={`rounded-3xl p-5 border space-y-2.5 ${cardBg}`}>
-              <h3 className="font-extrabold text-sm text-blue-500 flex items-center gap-1.5">
-                <Stethoscope className="w-4 h-4" /> জরুরি ফার্স্ট-এইড গাইডলাইন (Emergency First-Aid)
-              </h3>
-              <div className="space-y-2 text-xs leading-relaxed">
-                <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
-                  <b>১. অতিরিক্ত রক্তক্ষরণ বন্ধ করা:</b> পরিষ্কার কাপড় বা গজ দিয়ে ক্ষতস্থানে সরাসরি শক্ত করে চেপে ধরুন (Direct Pressure) এবং সম্ভব হলে আহত অঙ্গটি হার্টের লেভেলের চেয়ে উঁচুতে তুলে রাখুন।
-                </div>
-                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                  <b>২. মাথা ঘুরলে বা অজ্ঞান হলে:</b> রোগীকে সমতল জায়গায় শুইয়ে দিন এবং পা দুটি সামান্য উঁচু করে রাখুন যাতে মস্তিষ্কে রক্ত সঞ্চালন বাড়ে। মুখে পানির ঝাপটা দিন ও বাতাস করুন।
-                </div>
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <b>৩. জরুরি অ্যাম্বুলেন্স সহায়তা:</b> দুর্ঘটনায় আহত রোগীকে দ্রুত নিকটস্থ হাসপাতালে নিতে <b>999</b> বা অ্যাপের <b>Blood Banks & Ambulance</b> সেকশন থেকে অ্যাম্বুলেন্স কল করুন।
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 3: BLOOD BANKS & AMBULANCE ================= */}
-        {activeTab === "banks" && (
-          <div className="space-y-3">
-            <div className={`rounded-3xl p-4 border space-y-2.5 ${cardBg}`}>
-              <h2 className="font-extrabold flex items-center gap-2 text-sm">
-                <Building2 className="text-red-500 w-5 h-5" /> Blood Banks & Ambulance (ব্লাড ব্যাংক)
-              </h2>
-              <input
-                type="text"
-                placeholder="Search area or center name..."
-                value={bankSearch}
-                onChange={(e) => setBankSearch(e.target.value)}
-                className={`w-full border rounded-xl p-2.5 text-xs outline-none ${inputBg}`}
-              />
-            </div>
-
-            <div className="space-y-2.5">
-              {filteredBanks.map((item, idx) => (
-                <div
-                  key={idx}
-                  className={`rounded-2xl p-3.5 border flex items-center justify-between ${cardBg}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`p-2.5 rounded-xl ${
-                        item.type === "Ambulance"
-                          ? "bg-amber-500/20 text-amber-500"
-                          : "bg-red-500/20 text-red-500"
-                      }`}
-                    >
-                      {item.type === "Ambulance" ? (
-                        <Ambulance className="w-5 h-5" />
-                      ) : (
-                        <Building2 className="w-5 h-5" />
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs">{item.name}</h4>
-                      <p className={`text-[11px] ${subText}`}>
-                        {item.area} • {item.phone}
-                      </p>
-                    </div>
-                  </div>
-                  <a
-                    href={`tel:${item.phone}`}
-                    className={`px-3 py-2 rounded-xl text-xs flex items-center gap-1 shrink-0 ${btn3DGreen}`}
-                  >
-                    <Phone className="w-3.5 h-3.5" /> Call
-                  </a>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 4: TOP HEROES LEADERBOARD ================= */}
-        {activeTab === "heroes" && (
-          <div className={`rounded-3xl p-5 border space-y-4 ${cardBg}`}>
-            <div className="text-center">
-              <Award className="w-12 h-12 text-amber-500 mx-auto mb-1" />
-              <h2 className="text-lg font-extrabold">Top Heroes • সেরা রক্তদাতা</h2>
-              <p className={`text-xs ${subText}`}>Lifesavers Leaderboard</p>
-            </div>
-
-            {topHeroes.length === 0 ? (
-              <p className={`text-center text-xs py-6 ${subText}`}>
-                No donations recorded yet. Be the first hero!
-              </p>
-            ) : (
-              <div className="space-y-2.5">
-                {topHeroes.map((hero, index) => (
-                  <div
-                    key={hero.id}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 to-red-500/15 border border-amber-400/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-7 h-7 rounded-full bg-amber-500 text-slate-950 font-extrabold text-xs flex items-center justify-center">
-                        #{index + 1}
-                      </span>
-                      <div>
-                        <div className="font-bold text-sm flex items-center gap-1">
-                          {hero.name}
-                          {hero.verified && <ShieldCheck className="w-4 h-4 text-blue-500" />}
+                {/* ৯টি 3D প্রিমিয়াম অপশন কার্ড */}
+                <div className="grid grid-cols-2 gap-3.5">
+                  {[
+                    { id: 'all_donors', title: 'Donor List (All)', sub: `${activeDonorsList.length} জন ডোনার`, icon: Users },
+                    { id: 'available_donors', title: 'Available Donor', sub: `${availableDonorsList.length} জন প্রস্তুত`, icon: UserCheck },
+                    { id: 'top_heroes', title: 'Top Heroes', sub: 'সেরা রক্তদাতা তালিকা', icon: Award },
+                    { id: 'blood_banks', title: 'Blood Bank Stock', sub: 'লাইভ রক্তের মজুদ', icon: Building2 },
+                    { id: 'certificate', title: 'Hero Certificate', sub: 'ডিজিটাল সম্মাননা কার্ড', icon: FileBadge },
+                    { id: 'ambulance', title: 'Ambulance & Help', sub: 'জরুরি অ্যাম্বুলেন্স সেবা', icon: Ambulance },
+                    { id: 'quiz', title: 'Physical Test', sub: 'রক্তদানের যোগ্যতা যাচাই', icon: Stethoscope },
+                    { id: 'rate', title: 'Rate Us', sub: 'অ্যাপ সম্পর্কে মতামত', icon: Star },
+                    { id: 'about', title: 'About Us', sub: 'অ্যাপ ও ডেভেলপার তথ্য', icon: Info }
+                  ].map((item) => {
+                    const IconComp = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setRedpulseSubView(item.id)}
+                        className={`p-4 rounded-3xl border text-left transition-all active:translate-y-1 flex flex-col justify-between min-h-[118px] ${theme.card}`}
+                      >
+                        <div className={`w-11 h-11 rounded-2xl ${theme.btn3d} flex items-center justify-center mb-3`}>
+                          <IconComp className="w-5 h-5" />
                         </div>
-                        <p className={`text-[11px] ${subText}`}>{hero.address}</p>
+                        <div>
+                          <h3 className="font-extrabold text-sm leading-snug">{item.title}</h3>
+                          <p className={`text-[11px] mt-0.5 ${theme.textSub}`}>{item.sub}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* সাব-ভিউ ব্যাক বাটন ও কন্টেন্ট */
+              <div className="space-y-4">
+                <button
+                  onClick={() => { setRedpulseSubView(null); setChatReceiver(null); }}
+                  className={`px-4 py-2 rounded-2xl border text-xs font-extrabold flex items-center gap-1.5 ${theme.card}`}
+                >
+                  ← RedPulse মেনুতে ফিরে যান
+                </button>
+
+                {/* ---------------------------------------------------------- */}
+                {/* সাব-ভিউ A: DONOR LIST (ALL) ও AVAILABLE DONOR (আল্ট্রা-ক্লিন কার্ড) */}
+                {/* ---------------------------------------------------------- */}
+                {(redpulseSubView === 'all_donors' || redpulseSubView === 'available_donors') && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-base font-black">
+                        {redpulseSubView === 'all_donors' ? 'Donor List (All)' : 'Available Donors (Ready)'}
+                      </h2>
+                    </div>
+
+                    {/* সার্চ ও ব্লাড গ্রুপ ফিল্টার */}
+                    <div className="space-y-2.5">
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="নাম বা এলাকা দিয়ে খুঁজুন..."
+                          value={donorSearch}
+                          onChange={(e) => setDonorSearch(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-300/80 bg-white/90 text-slate-900 text-xs focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="flex gap-1.5 overflow-x-auto pb-1">
+                        {['ALL', ...BLOOD_GROUPS].map((bg) => (
+                          <button
+                            key={bg}
+                            onClick={() => setBloodGroupFilter(bg)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black shrink-0 border ${
+                              bloodGroupFilter === bg ? theme.btn3d : 'bg-white/80 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {bg}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                    <span className="bg-red-600 text-white text-xs font-extrabold px-2.5 py-1 rounded-lg">
-                      {hero.donationCount}x
-                    </span>
+
+                    {/* মিনিমাল ডোনার তালিকা: শুধু অ্যাভাটার, নাম, Verified ব্যাজ (থাকলে) এবং ব্লাড গ্রুপ */}
+                    <div className="space-y-2.5">
+                      {(redpulseSubView === 'all_donors' ? activeDonorsList : availableDonorsList)
+                        .filter((d) => {
+                          const matchGroup = bloodGroupFilter === 'ALL' || d.bloodGroup === bloodGroupFilter;
+                          const matchText =
+                            d.name?.toLowerCase().includes(donorSearch.toLowerCase()) ||
+                            d.location?.toLowerCase().includes(donorSearch.toLowerCase());
+                          return matchGroup && matchText;
+                        })
+                        .map((donor) => (
+                          <div
+                            key={donor.id}
+                            onClick={() => setSelectedDonorModal(donor)}
+                            className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer active:translate-y-0.5 transition-all ${theme.card}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-xl ${theme.btn3d} flex items-center justify-center font-black text-sm`}>
+                                {donor.name?.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-sm">{donor.name}</span>
+                                {(donor.verifiedDonations || 0) > 0 && (
+                                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 text-[10px] font-black">
+                                    ✓ Verified
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <span className={`px-3 py-1 rounded-xl text-xs font-black border ${theme.badge}`}>
+                              {donor.bloodGroup}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+
+                    {/* রোল-ভিত্তিক লাইভ চ্যাট: সাধারণ ইউজারের জন্য Available Donor-এ, অ্যাডমিনের জন্য All Donor-এ */}
+                    {((redpulseSubView === 'available_donors' && !isMasterAdmin && !isHiredAdmin) ||
+                      (redpulseSubView === 'all_donors' && (isMasterAdmin || isHiredAdmin))) && (
+                      <div className={`mt-5 rounded-3xl border p-4 ${theme.card}`}>
+                        <h3 className="text-xs font-black uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                          <Send className={`w-4 h-4 ${theme.accentText}`} /> Direct Live Chat
+                        </h3>
+
+                        {!chatReceiver ? (
+                          <p className={`text-xs ${theme.textSub}`}>
+                            চ্যাট শুরু করতে উপরের তালিকা থেকে যেকোনো ডোনারের নামে ক্লিক করে <strong>"Live Chat"</strong> বাটনে চাপ দিন।
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                              <span className="text-xs font-extrabold">
+                                চ্যাট চলছে: <span className={theme.accentText}>{chatReceiver.name}</span>
+                              </span>
+                              <button onClick={() => setChatReceiver(null)} className="text-xs text-rose-500 font-bold">
+                                বন্ধ করুন
+                              </button>
+                            </div>
+
+                            <div className="h-48 overflow-y-auto space-y-2 p-2 rounded-2xl bg-slate-100/70 dark:bg-slate-800/50">
+                              {messages
+                                .filter(
+                                  (m) =>
+                                    (m.senderPhone === currentUser.phone && m.receiverPhone === chatReceiver.phone) ||
+                                    (m.senderPhone === chatReceiver.phone && m.receiverPhone === currentUser.phone)
+                                )
+                                .map((m) => {
+                                  const isMe = m.senderPhone === currentUser.phone;
+                                  return (
+                                    <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                      <span className="text-[10px] opacity-60 mb-0.5">
+                                        {m.senderName} ➔ {m.receiverName}
+                                      </span>
+                                      <div
+                                        className={`px-3 py-2 rounded-2xl text-xs max-w-[80%] ${
+                                          isMe ? theme.btn3d : 'bg-white text-slate-800 border border-slate-200'
+                                        }`}
+                                      >
+                                        {m.text}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+
+                            <form onSubmit={handleSendMessage} className="flex gap-2">
+                              <input
+                                type="text"
+                                placeholder="মেসেজ লিখুন..."
+                                value={chatText}
+                                onChange={(e) => setChatText(e.target.value)}
+                                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                              />
+                              <button type="submit" className={`px-4 py-2.5 rounded-xl text-xs font-black ${theme.btn3d}`}>
+                                পাঠান
+                              </button>
+                            </form>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))}
+                )}
+
+                {/* ---------------------------------------------------------- */}
+                {/* সাব-ভিউ B: TOP HEROES */}
+                {/* ---------------------------------------------------------- */}
+                {redpulseSubView === 'top_heroes' && (
+                  <div className="space-y-3">
+                    <h2 className="text-base font-black">🏆 Top Blood Heroes</h2>
+                    {topHeroesList.length === 0 ? (
+                      <p className={`text-xs ${theme.textSub}`}>এখনো কোনো ভেরিফায়েড রক্তদানের রেকর্ড যুক্ত হয়নি।</p>
+                    ) : (
+                      topHeroesList.map((hero, idx) => (
+                        <div
+                          key={hero.id}
+                          onClick={() => setSelectedDonorModal(hero)}
+                          className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer ${theme.card}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`w-8 h-8 rounded-xl ${theme.btn3d} flex items-center justify-center font-black text-xs`}>
+                              #{idx + 1}
+                            </span>
+                            <div>
+                              <h4 className="font-bold text-sm">{hero.name}</h4>
+                              <span className="text-[11px] text-emerald-600 font-bold">
+                                ✓ {hero.verifiedDonations || hero.donationCount} বার রক্তদান
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-xl text-xs font-black border ${theme.badge}`}>
+                            {hero.bloodGroup}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* ---------------------------------------------------------- */}
+                {/* সাব-ভিউ C: BLOOD BANK STOCK (সার্চ + শুধু নাম, ক্লিক করলে স্টক পপ-আপ) */}
+                {/* ---------------------------------------------------------- */}
+                {redpulseSubView === 'blood_banks' && (
+                  <div className="space-y-4">
+                    <h2 className="text-base font-black">🏥 Blood Bank Live Stock</h2>
+
+                    {/* সার্চ অপশন */}
+                    <div className="relative">
+                      <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="ব্লাড ব্যাংকের নাম, এলাকা বা রক্তের গ্রুপ (যেমন O-) লিখুন..."
+                        value={bankSearch}
+                        onChange={(e) => setBankSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-300 bg-white text-slate-900 text-xs focus:outline-none"
+                      />
+                    </div>
+
+                    {/* ব্লাড ব্যাংকের নাম তালিকা */}
+                    <div className="space-y-2.5">
+                      {bloodBanks
+                        .filter((b) => {
+                          const q = bankSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          const matchName = b.name?.toLowerCase().includes(q) || b.location?.toLowerCase().includes(q);
+                          const upperQ = bankSearch.trim().toUpperCase();
+                          const matchStock = BLOOD_GROUPS.includes(upperQ) && (b.stock?.[upperQ] || 0) > 0;
+                          return matchName || matchStock;
+                        })
+                        .map((bank) => (
+                          <div
+                            key={bank.id}
+                            onClick={() => setSelectedBankModal(bank)}
+                            className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer active:translate-y-0.5 transition-all ${theme.card}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-xl ${theme.btn3d} flex items-center justify-center`}>
+                                <Building2 className="w-5 h-5" />
+                              </div>
+                              <span className="font-extrabold text-sm">{bank.name}</span>
+                            </div>
+                            <ChevronRight className="w-5 h-5 opacity-60" />
+                          </div>
+                        ))}
+                      {bloodBanks.length === 0 && (
+                        <p className={`text-xs ${theme.textSub}`}>এখনো কোনো ব্লাড ব্যাংক যুক্ত করা হয়নি।</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ---------------------------------------------------------- */}
+                {/* সাব-ভিউ D: HERO CERTIFICATE (ডিজিটাল সার্টিফিকেট / থ্যাংক ইউ কার্ড) */}
+                {/* ---------------------------------------------------------- */}
+                {redpulseSubView === 'certificate' && (
+                  <div className="space-y-4">
+                    <h2 className="text-base font-black">🎖️ RedPulse Lifesaver Certificate</h2>
+                    <div className={`p-6 rounded-3xl border-2 text-center relative overflow-hidden ${theme.card}`}>
+                      <div className="inline-flex p-3 rounded-2xl bg-amber-500/15 text-amber-600 mb-3">
+                        <Award className="w-10 h-10" />
+                      </div>
+                      <p className="text-[11px] font-black uppercase tracking-widest opacity-60">Certificate of Appreciation</p>
+                      <h3 className="text-xl font-black mt-1">{currentUser.name}</h3>
+                      <span className={`inline-block mt-1 px-3 py-0.5 rounded-full text-xs font-black border ${theme.badge}`}>
+                        Blood Group: {currentUser.bloodGroup}
+                      </span>
+                      <p className="text-xs mt-4 leading-relaxed opacity-85">
+                        মানবতার সেবায় স্বেচ্ছায় রক্তদান করে অমূল্য প্রাণ বাঁচানোর জন্য RedPulse পরিবারের পক্ষ থেকে আন্তরিক কৃতজ্ঞতা ও সম্মাননা প্রদান করা হলো।
+                      </p>
+                      <div className="mt-4 pt-3 border-t border-slate-200/60 flex justify-between text-[11px] font-bold">
+                        <span>Verified Donations: {currentUser.verifiedDonations || 0}</span>
+                        <span>{masterConfig.devName}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => window.print()}
+                      className={`w-full py-3.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 ${theme.btn3d}`}
+                    >
+                      <Download className="w-4 h-4" /> সার্টিফিকেট সেভ / প্রিন্ট করুন
+                    </button>
+                  </div>
+                )}
+
+                {/* ---------------------------------------------------------- */}
+                {/* সাব-ভিউ E: AMBULANCE & HELPLINE */}
+                {/* ---------------------------------------------------------- */}
+                {redpulseSubView === 'ambulance' && (
+                  <div className="space-y-3">
+                    <h2 className="text-base font-black">🚑 Emergency Ambulance & Helpline</h2>
+                    <div className={`p-4 rounded-2xl border flex items-center justify-between ${theme.card}`}>
+                      <div>
+                        <h4 className="font-bold text-sm">জাতীয় জরুরি সেবা (৯৯৯)</h4>
+                        <p className={`text-xs ${theme.textSub}`}>সারাদেশ • ২৪ ঘণ্টা ফ্রি হেল্পলাইন</p>
+                      </div>
+                      <a href="tel:999" className={`px-4 py-2 rounded-xl text-xs font-black ${theme.btn3d}`}>
+                        কল 999
+                      </a>
+                    </div>
+                    {ambulances.map((amb) => (
+                      <div key={amb.id} className={`p-4 rounded-2xl border flex items-center justify-between ${theme.card}`}>
+                        <div>
+                          <h4 className="font-bold text-sm">{amb.name}</h4>
+                          <p className={`text-xs ${theme.textSub}`}>{amb.area} • {amb.phone}</p>
+                        </div>
+                        <a href={`tel:${amb.phone}`} className={`px-4 py-2 rounded-xl text-xs font-black ${theme.btn3d}`}>
+                          কল করুন
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ---------------------------------------------------------- */}
+                {/* সাব-ভিউ F: PHYSICAL CONDITION TEST */}
+                {/* ---------------------------------------------------------- */}
+                {redpulseSubView === 'quiz' && (
+                  <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
+                    <h2 className="text-base font-black">🩺 Physical Condition Eligibility Test</h2>
+                    {[
+                      { key: 'age18', label: 'আপনার বয়স কি ১৮ থেকে ৬০ বছরের মধ্যে?' },
+                      { key: 'weight50', label: 'আপনার শরীরের ওজন কি ৫০ কেজি বা তার বেশি?' },
+                      { key: 'noMed', label: 'আপনি কি বর্তমানে কোনো অ্যান্টিবায়োটিক বা জটিল রোগের ওষুধ ছাড়া সুস্থ আছেন?' },
+                      { key: 'days120', label: 'আপনার শেষ রক্তদানের পর কি ১২০ দিন (৪ মাস) পার হয়েছে?' }
+                    ].map((q) => (
+                      <label key={q.key} className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-slate-200/70">
+                        <span className="text-xs font-bold">{q.label}</span>
+                        <input
+                          type="checkbox"
+                          checked={quizAnswers[q.key]}
+                          onChange={(e) => setQuizAnswers({ ...quizAnswers, [q.key]: e.target.checked })}
+                          className="w-5 h-5 accent-rose-600"
+                        />
+                      </label>
+                    ))}
+                    <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-center">
+                      {Object.values(quizAnswers).every(Boolean) ? (
+                        <p className="text-xs font-black text-emerald-600">✅ অভিনন্দন! আপনি শারীরিকভাবে রক্তদানের জন্য সম্পূর্ণ প্রস্তুত।</p>
+                      ) : (
+                        <p className="text-xs font-black text-rose-600">⚠️ দুঃখিত, সবগুলো শর্ত পূরণ না হওয়া পর্যন্ত রক্তদান থেকে বিরত থাকুন।</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ---------------------------------------------------------- */}
+                {/* সাব-ভিউ G: RATE US */}
+                {/* ---------------------------------------------------------- */}
+                {redpulseSubView === 'rate' && (
+                  <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
+                    <h2 className="text-base font-black">⭐ Rate RedPulse App</h2>
+                    <div className="flex gap-2 justify-center py-2">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setUserRating({ ...userRating, stars: s })}
+                          className="p-2"
+                        >
+                          <Star
+                            className={`w-8 h-8 ${
+                              s <= userRating.stars ? 'text-amber-400 fill-amber-400' : 'text-slate-300'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      rows={3}
+                      placeholder="অ্যাপটি সম্পর্কে আপনার মূল্যবান মতামত লিখুন..."
+                      value={userRating.comment}
+                      onChange={(e) => setUserRating({ ...userRating, comment: e.target.value })}
+                      className="w-full p-3 rounded-2xl border border-slate-300 bg-white text-slate-900 text-xs"
+                    />
+                    <button
+                      onClick={async () => {
+                        await addDoc(collection(db, 'ratings'), {
+                          userName: currentUser.name,
+                          stars: userRating.stars,
+                          comment: userRating.comment,
+                          createdAtMs: Date.now()
+                        });
+                        setUserRating({ stars: 5, comment: '' });
+                        alert('আপনার মূল্যবান রিভিউয়ের জন্য ধন্যবাদ!');
+                      }}
+                      className={`w-full py-3 rounded-2xl text-xs font-black ${theme.btn3d}`}
+                    >
+                      রেটিং জমা দিন
+                    </button>
+                  </div>
+                )}
+
+                {/* ---------------------------------------------------------- */}
+                {/* সাব-ভিউ H: ABOUT US (বটম বার থেকে এখানে স্থানান্তরিত + ডেভেলপার পরিচিতি) */}
+                {/* ---------------------------------------------------------- */}
+                {redpulseSubView === 'about' && (
+                  <div className="space-y-4">
+                    <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
+                      <h2 className="text-base font-black">🩸 About RedPulse</h2>
+                      <p className="text-xs leading-relaxed opacity-85">
+                        <strong>RedPulse</strong> একটি জরুরি রক্তদাতা ও ব্লাড ব্যাংক নেটওয়ার্ক প্ল্যাটফর্ম। জরুরি মুহূর্তে রোগীর স্বজনদের সাথে প্রস্তুত রক্তদাতা ও লাইভ ব্লাড ব্যাংকের দ্রুত এবং নিরাপদ সংযোগ তৈরি করাই আমাদের মূল লক্ষ্য।
+                      </p>
+                      <div className="space-y-1.5 text-xs pt-2 border-t border-slate-200/60">
+                        <p>✅ <strong>১০০% নম্বর প্রাইভেসি:</strong> অ্যাডমিনের যাচাই ছাড়া কারও ফোন নম্বর প্রকাশ করা হয় না।</p>
+                        <p>✅ <strong>১২০ দিনের নিরাপদ কুলডাউন:</strong> রক্তদাতার সুস্বাস্থ্য রক্ষায় স্বয়ংক্রিয় বিশ্রাম ট্র্যাকিং।</p>
+                        <p>✅ <strong>লাইভ ব্লাড ব্যাংক ও অ্যাম্বুলেন্স:</strong> তাৎক্ষণিক রক্তের মজুদ ও জরুরি পরিবহন তথ্য।</p>
+                      </div>
+                    </div>
+
+                    {/* ডেভেলপার পরিচিতি কার্ড (Admin Panel থেকে এডিটেবল) */}
+                    <div className={`p-5 rounded-3xl border text-center space-y-2 ${theme.card}`}>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${theme.badge}`}>
+                        Developer Information
+                      </span>
+                      <h3 className="text-base font-black pt-1">{masterConfig.devName}</h3>
+                      <p className={`text-xs font-bold ${theme.accentText}`}>{masterConfig.devRole}</p>
+                      <p className={`text-xs leading-relaxed ${theme.textSub}`}>{masterConfig.devBio}</p>
+                      {masterConfig.devContact && (
+                        <p className="text-xs font-bold pt-1">Contact: {masterConfig.devContact}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* ================= TAB 5: USER REVIEWS ================= */}
-        {activeTab === "reviews" && (
+        {/* ================================================================== */}
+        {/* ট্যাব ৩: PROFILE TAB (তথ্য আপডেট + কুলডাউন + নিচে ডেভেলপার ক্রেডিট) */}
+        {/* ================================================================== */}
+        {activeTab === 'profile' && (
           <div className="space-y-4">
-            <div className={`rounded-3xl p-5 border space-y-3 ${cardBg}`}>
-              <h2 className="font-extrabold text-base flex items-center gap-2">
-                <Quote className="w-5 h-5 text-red-500" /> Share Your Review • মতামত লিখুন
-              </h2>
-              <p className={`text-xs ${subText}`}>
-                Published after Admin approval (অ্যাডমিন অনুমোদনের পর প্রকাশিত হবে)
-              </p>
-
-              <form onSubmit={handleSubmitReview} className="space-y-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold mr-1">Rating:</span>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      type="button"
-                      key={star}
-                      onClick={() => setReviewRating(star)}
-                      className={reviewRating >= star ? "text-amber-400" : "text-slate-500"}
-                    >
-                      <Star className="w-6 h-6 fill-current" />
-                    </button>
-                  ))}
+            <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-black">{currentUser.name}</h2>
+                  <p className={`text-xs ${theme.textSub}`}>{currentUser.phone} • {currentUser.bloodGroup}</p>
                 </div>
-
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Write your experience... (আপনার অভিজ্ঞতা লিখুন)"
-                  value={reviewText}
-                  onChange={(e) => setReviewText(e.target.value)}
-                  className={`w-full border rounded-2xl p-3 text-xs outline-none ${inputBg}`}
-                />
-
                 <button
-                  disabled={submittingReview}
-                  type="submit"
-                  className={`w-full py-3 rounded-2xl text-xs ${btnPrimary}`}
+                  onClick={handleLogout}
+                  className="px-3.5 py-2 rounded-xl bg-rose-500/15 text-rose-600 text-xs font-black flex items-center gap-1"
                 >
-                  {submittingReview ? "Submitting..." : "Submit Review • জমা দিন"}
+                  <LogOut className="w-4 h-4" /> লগআউট
                 </button>
-              </form>
-            </div>
-
-            <div className={`rounded-3xl p-5 border space-y-3 ${cardBg}`}>
-              <h3 className="font-extrabold text-sm">
-                Community Reviews ({approvedReviews.length})
-              </h3>
-
-              {approvedReviews.length === 0 ? (
-                <p className={`text-xs text-center py-6 ${subText}`}>No published reviews yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {approvedReviews.map((rev) => (
-                    <div
-                      key={rev.id}
-                      className={`p-3.5 rounded-2xl border space-y-1.5 ${
-                        darkMode ? "bg-slate-800/70 border-slate-700" : "bg-rose-50/60 border-red-100"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-red-600 text-white font-bold text-xs flex items-center justify-center">
-                          {rev.userName?.[0]}
-                        </div>
-                        <div>
-                          <div className="font-bold text-xs">
-                            {rev.userName}{" "}
-                            <span className="text-[10px] bg-red-500/20 text-red-500 px-1.5 rounded">
-                              {rev.userBlood}
-                            </span>
-                          </div>
-                          <div className="flex text-amber-400">
-                            {Array.from({ length: rev.rating || 5 }).map((_, i) => (
-                              <Star key={i} className="w-3 h-3 fill-current" />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-xs leading-relaxed pt-1">"{rev.comment}"</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 6: PROFILE, AUTO-READINESS, CHANGE PASSWORD, SOS CARD & WATERMARK ================= */}
-        {activeTab === "profile" && (
-          <div className="space-y-4">
-            <div className={`rounded-3xl p-5 border space-y-5 ${cardBg}`}>
-              <div className="flex flex-col items-center text-center relative">
-                <div className="relative">
-                  {currentUser.photoUrl ? (
-                    <img
-                      src={currentUser.photoUrl}
-                      alt="Profile"
-                      className="w-24 h-24 rounded-full object-cover border-4 border-red-500 shadow-md"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-full bg-red-500/15 text-red-500 flex items-center justify-center text-3xl font-extrabold border-4 border-red-500/30">
-                      {currentUser.name?.[0]}
-                    </div>
-                  )}
-                  <label className="absolute bottom-0 right-0 bg-red-600 text-white p-2 rounded-full cursor-pointer shadow-md hover:bg-red-700">
-                    <Camera className="w-4 h-4" />
-                    <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-                  </label>
-                </div>
-
-                <h2 className="text-xl font-extrabold mt-3 flex items-center gap-1.5">
-                  {currentUser.name}
-                  {currentUser.verified && <ShieldCheck className="w-5 h-5 text-blue-500" />}
-                </h2>
-                <p className={`text-xs ${subText}`}>
-                  {currentUser.phone} • {currentUser.gender || "Male"} • {currentUser.address}
-                </p>
-                {currentUser.email && (
-                  <p className={`text-[11px] flex items-center gap-1 mt-0.5 ${subText}`}>
-                    <Mail className="w-3 h-3" /> {currentUser.email}
-                  </p>
-                )}
-
-                {/* AUTO-DETECTED DONOR READINESS BADGE */}
-                <div className="mt-2.5">
-                  {myReadiness.ready ? (
-                    <span className="bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-extrabold">
-                      ✓ Ready to Donate (রক্তদানে প্রস্তুত)
-                    </span>
-                  ) : (
-                    <span className="bg-amber-500/15 text-amber-500 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">
-                      Not Ready: {myReadiness.reason}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex gap-2 mt-3 flex-wrap justify-center">
-                  <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-extrabold">
-                    Group: {currentUser.bloodGroup}
-                  </span>
-                  {userAge !== null && (
-                    <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-xs font-bold">
-                      Age: {userAge} yrs • {currentUser.weight || 55} kg
-                    </span>
-                  )}
-                  <span className="bg-amber-500/20 text-amber-500 px-3 py-1 rounded-full text-xs font-bold">
-                    Donations: {currentUser.donationCount || 0}x
-                  </span>
-                </div>
               </div>
 
-              {/* SOS EMERGENCY MEDICAL CARD */}
-              <div className="bg-gradient-to-r from-rose-500/15 to-red-600/15 border border-red-500/30 rounded-2xl p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-extrabold text-red-500 flex items-center gap-1.5">
-                    <HeartPulse className="w-4 h-4" /> SOS Emergency Medical Card
-                  </h4>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400">
-                    Allergy: {currentUser.allergies || "None"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <div>
-                    <span className={subText}>Emergency Family Contact:</span>
-                    <div className="font-bold">
-                      {currentUser.emergencyContact || "Not added yet (Edit profile to add)"}
-                    </div>
-                  </div>
-                  {currentUser.emergencyContact && (
-                    <a
-                      href={`tel:${currentUser.emergencyContact}`}
-                      className={`px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 ${btn3DRed}`}
-                    >
-                      <Phone className="w-3.5 h-3.5" /> SOS Call
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {editMode ? (
-                <form onSubmit={handleUpdateProfile} className="space-y-3 border-t border-slate-500/20 pt-4">
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
-                      <label className="block text-xs font-bold">Full Name (নাম)</label>
-                      <input
-                        required
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold">Gender</label>
-                      <select
-                        value={editGender}
-                        onChange={(e) => setEditGender(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
-                      >
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-bold">Email (ইমেইল)</label>
-                      <input
-                        required
-                        type="email"
-                        value={editEmail}
-                        onChange={(e) => setEditEmail(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold">Date of Birth (জন্মতারিখ)</label>
-                      <input
-                        type="date"
-                        value={editDob}
-                        onChange={(e) => setEditDob(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                      />
-                    </div>
-                  </div>
-
-                  {/* HEALTH READINESS INPUTS IN EDIT PROFILE */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="block text-xs font-bold">Weight (kg)</label>
-                      <input
-                        required
-                        type="number"
-                        value={editWeight}
-                        onChange={(e) => setEditWeight(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold">Hemoglobin</label>
-                      <select
-                        value={editHemoglobin}
-                        onChange={(e) => setEditHemoglobin(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
-                      >
-                        <option value="Normal">Normal</option>
-                        <option value="Low">Low</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold">Medicine?</label>
-                      <select
-                        value={editMedication}
-                        onChange={(e) => setEditMedication(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs font-bold ${inputBg}`}
-                      >
-                        <option value="No">No</option>
-                        <option value="Yes">Yes</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-bold">Blood Group</label>
-                      <select
-                        value={editBlood}
-                        onChange={(e) => setEditBlood(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs font-bold text-red-500 ${inputBg}`}
-                      >
-                        {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
-                          <option key={bg} value={bg}>
-                            {bg}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold">Last Donation Date</label>
-                      <input
-                        type="date"
-                        value={editLastDonation}
-                        onChange={(e) => setEditLastDonation(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold">District & Area (ঠিকানা)</label>
-                    <input
-                      required
-                      type="text"
-                      value={editAddress}
-                      onChange={(e) => setEditAddress(e.target.value)}
-                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-bold">SOS Family Number</label>
-                      <input
-                        type="tel"
-                        placeholder="01XXXXXXXXX"
-                        value={editEmergencyContact}
-                        onChange={(e) => setEditEmergencyContact(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold">Medical Allergy</label>
-                      <input
-                        type="text"
-                        placeholder="EX: None / Dust"
-                        value={editAllergies}
-                        onChange={(e) => setEditAllergies(e.target.value)}
-                        className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="submit" className={`flex-1 py-3 rounded-2xl text-xs ${btnPrimary}`}>
-                      Save Changes • সেভ করুন
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditMode(false)}
-                      className={`px-4 py-3 rounded-2xl text-xs ${btn3DDark}`}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-3 border-t border-slate-500/20 pt-4">
-                  <button
-                    onClick={() => {
-                      setEditName(currentUser.name);
-                      setEditGender(currentUser.gender || "Male");
-                      setEditEmail(currentUser.email || "");
-                      setEditDob(currentUser.dob || "");
-                      setEditWeight(currentUser.weight || "58");
-                      setEditHemoglobin(currentUser.hemoglobin || "Normal");
-                      setEditMedication(currentUser.onMedication || "No");
-                      setEditBlood(currentUser.bloodGroup);
-                      setEditAddress(currentUser.address);
-                      setEditLastDonation(currentUser.lastDonation || "");
-                      setEditEmergencyContact(currentUser.emergencyContact || "");
-                      setEditAllergies(currentUser.allergies || "");
-                      setEditMode(true);
-                    }}
-                    className={`w-full py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 ${btn3DDark}`}
-                  >
-                    <Edit3 className="w-4 h-4" /> Edit Profile & Health Status (প্রোফাইল এডিট)
-                  </button>
-
-                  {/* CHANGE PASSWORD SECTION INSIDE PROFILE */}
-                  <button
-                    onClick={() => setShowChangePass(!showChangePass)}
-                    className="w-full py-2.5 rounded-2xl text-xs font-bold border border-slate-500/30 flex items-center justify-center gap-1.5"
-                  >
-                    <KeyRound className="w-4 h-4 text-amber-500" /> Change Password (পাসওয়ার্ড পরিবর্তন)
-                  </button>
-
-                  {showChangePass && (
-                    <form
-                      onSubmit={handleProfilePasswordChange}
-                      className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 space-y-2.5"
-                    >
-                      <input
-                        required
-                        type="password"
-                        placeholder="Current Password (বর্তমান পাসওয়ার্ড)"
-                        value={oldPassInput}
-                        onChange={(e) => setOldPassInput(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
-                      />
-                      <input
-                        required
-                        type="password"
-                        placeholder="New Password (নতুন পাসওয়ার্ড - Min 4 chars)"
-                        value={profileNewPassInput}
-                        onChange={(e) => setProfileNewPassInput(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${inputBg}`}
-                      />
-                      <button type="submit" className={`w-full py-2.5 rounded-xl text-xs ${btnPrimary}`}>
-                        Update Password • সেভ করুন
-                      </button>
-                    </form>
-                  )}
-
-                  {!currentUser.verified && (
-                    <div className="bg-blue-500/10 border border-blue-400/30 p-3.5 rounded-2xl space-y-2">
-                      <h4 className="text-xs font-extrabold text-blue-400 flex items-center gap-1">
-                        <ShieldCheck className="w-4 h-4" /> Get Verified Badge (ভেরিফাইড ব্যাজ)
-                      </h4>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Enter NID or Student ID"
-                          value={nidInput}
-                          onChange={(e) => setNidInput(e.target.value)}
-                          className={`flex-1 border rounded-xl p-2 text-xs ${inputBg}`}
-                        />
-                        <button
-                          onClick={handleRequestVerify}
-                          className={`px-3.5 py-2 rounded-xl text-xs ${btn3DBlue}`}
-                        >
-                          Verify
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* DONATION HISTORY TIMELINE */}
-                  {Array.isArray(currentUser.donationHistory) &&
-                    currentUser.donationHistory.length > 0 && (
-                      <div className="pt-2 space-y-2">
-                        <h4 className="text-xs font-extrabold flex items-center gap-1.5 text-amber-500">
-                          <History className="w-4 h-4" /> Donation History (রক্তদানের ইতিহাস)
-                        </h4>
-                        <div className="space-y-1.5">
-                          {currentUser.donationHistory.map((h, i) => (
-                            <div
-                              key={i}
-                              className={`p-2.5 rounded-xl border text-xs flex justify-between items-center ${
-                                darkMode ? "bg-slate-800/60 border-slate-700" : "bg-slate-50 border-slate-200"
-                              }`}
-                            >
-                              <div>
-                                <div className="font-bold">{h.hospital}</div>
-                                <div className={`text-[10px] ${subText}`}>Seeker: {h.seeker}</div>
-                              </div>
-                              <span className="text-[11px] font-bold text-red-500">{h.date}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  <button
-                    onClick={handleLogout}
-                    className="w-full bg-red-500/15 text-red-500 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5"
-                  >
-                    <LogOut className="w-4 h-4" /> Logout (লগআউট)
-                  </button>
+              {/* ১২০ দিনের কুলডাউন ও রেডিনেস ব্যানার */}
+              {!isMasterAdmin && !isBloodBank && (
+                <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/70">
+                  {(() => {
+                    const st = calculateDonorReadiness(currentUser);
+                    return (
+                      <p className={`text-xs font-black ${st.isReady ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        {st.isReady ? `✅ ${st.reason}` : `⏳ ${st.reason}`}
+                      </p>
+                    );
+                  })()}
                 </div>
               )}
-            </div>
 
-            {/* DEVELOPER WATERMARK AT THE BOTTOM OF PROFILE PAGE */}
-            <div
-              className={`rounded-3xl p-5 border text-center select-none relative overflow-hidden ${cardBg}`}
-            >
-              <Droplet className="w-20 h-20 text-red-500/5 absolute -bottom-4 -right-4 pointer-events-none" />
-              <p className="text-[10px] uppercase tracking-[0.22em] font-semibold text-red-500/80 mb-1">
-                Developed by
-              </p>
-              <h4 className="text-base font-extrabold tracking-wide font-serif">
-                Mohammad Rejwan Islam
-              </h4>
-              <p className="text-xs font-medium mt-0.5 tracking-wide">
-                Department of Software Engineering
-              </p>
-              <p className="text-[11px] font-semibold text-red-500/80 mt-0.5 tracking-wider">
-                Daffodil International University
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 7: SUPER ADMIN CONTROL, LIVE RADAR MONITOR & SURVEILLANCE ================= */}
-        {activeTab === "admin" && currentUser.isAdmin && (
-          <div className={`rounded-3xl p-5 border space-y-4 ${cardBg}`}>
-            <div className="flex items-center justify-between border-b border-slate-500/20 pb-3">
-              <h2 className="font-extrabold flex items-center gap-2 text-sm">
-                <Lock className="text-red-500 w-5 h-5" /> RedPulse Admin Control & Surveillance
-              </h2>
-              {adminUnlocked && (
-                <button
-                  onClick={() => {
-                    setAdminUnlocked(false);
-                    setPinEntry("");
+              {/* প্রোফাইল আপডেট ফর্ম (সাইন-আপের পর ইউজার এখান থেকে বিস্তারিত তথ্য আপডেট করবে) */}
+              {!isMasterAdmin && !isBloodBank && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    await updateDoc(doc(db, 'users', currentUser.id), {
+                      name: currentUser.name,
+                      location: currentUser.location || '',
+                      age: currentUser.age || '',
+                      weight: currentUser.weight || '',
+                      hemoglobin: currentUser.hemoglobin || '',
+                      lastDonationDate: currentUser.lastDonationDate || '',
+                      onMedication: Boolean(currentUser.onMedication)
+                    });
+                    alert('আপনার প্রোফাইল তথ্য সফলভাবে আপডেট হয়েছে!');
                   }}
-                  className={`text-xs px-3 py-1.5 rounded-xl ${btn3DDark}`}
+                  className="space-y-3 pt-2"
                 >
-                  Lock
-                </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">নাম</label>
+                      <input
+                        type="text"
+                        value={currentUser.name || ''}
+                        onChange={(e) => setCurrentUser({ ...currentUser, name: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">এলাকা / লোকেশন</label>
+                      <input
+                        type="text"
+                        placeholder="যেমন: সাভার, ঢাকা"
+                        value={currentUser.location || ''}
+                        onChange={(e) => setCurrentUser({ ...currentUser, location: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">বয়স (বছর)</label>
+                      <input
+                        type="number"
+                        value={currentUser.age || ''}
+                        onChange={(e) => setCurrentUser({ ...currentUser, age: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">ওজন (কেজি)</label>
+                      <input
+                        type="number"
+                        value={currentUser.weight || ''}
+                        onChange={(e) => setCurrentUser({ ...currentUser, weight: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">হিমোগ্লোবিন</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={currentUser.hemoglobin || ''}
+                        onChange={(e) => setCurrentUser({ ...currentUser, hemoglobin: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">শেষ রক্তদানের তারিখ</label>
+                      <input
+                        type="date"
+                        value={currentUser.lastDonationDate || ''}
+                        onChange={(e) => setCurrentUser({ ...currentUser, lastDonationDate: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-2 text-xs font-bold pt-1">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(currentUser.onMedication)}
+                      onChange={(e) => setCurrentUser({ ...currentUser, onMedication: e.target.checked })}
+                      className="w-4 h-4 accent-rose-600"
+                    />
+                    <span>বর্তমানে নিয়মিত কোনো জটিল রোগের ওষুধ সেবন করছি</span>
+                  </label>
+
+                  <button type="submit" className={`w-full py-3 rounded-2xl text-xs font-black ${theme.btn3d}`}>
+                    প্রোফাইল সেভ করুন
+                  </button>
+                </form>
               )}
             </div>
 
-            {!adminUnlocked ? (
-              <form onSubmit={handleAdminUnlock} className="py-4 space-y-3 max-w-xs mx-auto text-center">
-                <KeyRound className="w-12 h-12 text-red-500 mx-auto" />
-                <h3 className="font-bold text-sm">Enter Admin Secret PIN</h3>
+            {/* Profile ট্যাবের নিচে ডেভেলপার পরিচিতি ক্রেডিট */}
+            <div className={`p-4 rounded-2xl border text-center ${theme.card}`}>
+              <p className="text-[10px] uppercase tracking-widest opacity-60 font-bold">Developed & Engineered By</p>
+              <p className={`text-xs font-black mt-0.5 ${theme.accentText}`}>{masterConfig.devName}</p>
+              <p className={`text-[11px] ${theme.textSub}`}>{masterConfig.devRole}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* ট্যাব ৪: DATA ENTRY OPERATOR TAB (Profile-এর পাশে শুধুমাত্র অপারেটরের জন্য) */}
+        {/* ================================================================== */}
+        {activeTab === 'data_entry' && isDataEntry && (
+          <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
+            <h2 className="text-base font-black">📝 Manual Offline Donor Entry</h2>
+            <p className={`text-xs ${theme.textSub}`}>
+              যাদের স্মার্টফোন বা অ্যাপ নেই, তাদের তথ্য এখানে সংরক্ষণ করুন।
+            </p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!manualDonorForm.name || !manualDonorForm.phone) return;
+                await addDoc(collection(db, 'users'), {
+                  ...manualDonorForm,
+                  pin: '1234',
+                  role: 'donor',
+                  addedByOperator: currentUser.name,
+                  donationCount: 0,
+                  verifiedDonations: 0,
+                  reviews: [],
+                  isBanned: false,
+                  createdAtMs: Date.now()
+                });
+                setManualDonorForm({ name: '', phone: '', bloodGroup: 'A+', location: '', lastDonationDate: '' });
+                alert('অফলাইন ডোনারের তথ্য সফলভাবে যুক্ত হয়েছে!');
+              }}
+              className="space-y-3"
+            >
+              <input
+                type="text"
+                required
+                placeholder="ডোনারের পুরো নাম"
+                value={manualDonorForm.name}
+                onChange={(e) => setManualDonorForm({ ...manualDonorForm, name: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+              />
+              <input
+                type="tel"
+                required
+                placeholder="মোবাইল নম্বর"
+                value={manualDonorForm.phone}
+                onChange={(e) => setManualDonorForm({ ...manualDonorForm, phone: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+              />
+              <select
+                value={manualDonorForm.bloodGroup}
+                onChange={(e) => setManualDonorForm({ ...manualDonorForm, bloodGroup: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs font-bold"
+              >
+                {BLOOD_GROUPS.map((bg) => (
+                  <option key={bg} value={bg}>{bg}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="এলাকা / ঠিকানা"
+                value={manualDonorForm.location}
+                onChange={(e) => setManualDonorForm({ ...manualDonorForm, location: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+              />
+              <div>
+                <label className="block text-[11px] font-bold mb-1">শেষ রক্তদানের তারিখ (ঐচ্ছিক)</label>
                 <input
-                  required
-                  type="password"
-                  maxLength={4}
-                  placeholder="****"
-                  value={pinEntry}
-                  onChange={(e) => setPinEntry(e.target.value)}
-                  className={`w-full border rounded-xl p-3 text-center text-lg font-extrabold tracking-widest ${inputBg}`}
+                  type="date"
+                  value={manualDonorForm.lastDonationDate}
+                  onChange={(e) => setManualDonorForm({ ...manualDonorForm, lastDonationDate: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
                 />
-                <button type="submit" className={`w-full py-3 rounded-2xl text-xs ${btnPrimary}`}>
-                  Unlock Admin Panel
-                </button>
-              </form>
-            ) : (
-              <div className="space-y-6">
-                {/* 1. LIVE RADAR ON DONORS MONITOR (WHO HAS RADAR ON RIGHT NOW) */}
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase text-emerald-500 mb-2 flex items-center gap-1.5">
-                    <Activity className="w-4 h-4 animate-pulse" /> Live Radar ON Donors ({onlineDonorsList.length} Active Now)
-                  </h3>
-                  {onlineDonorsList.length === 0 ? (
-                    <p className={`text-xs ${subText}`}>No donor has Radar ON right now.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {onlineDonorsList.map((od) => (
-                        <div
-                          key={od.phone}
-                          className="bg-emerald-500/15 border border-emerald-500/30 p-3 rounded-2xl flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <div className="font-extrabold flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                              {od.name} ({od.bloodGroup} • {od.gender || "Male"})
-                            </div>
-                            <div className={`text-[11px] ${subText}`}>
-                              Phone: <b>{od.phone}</b> • {od.address || "GPS Active"}
-                            </div>
-                          </div>
-                          <div className="flex gap-1.5">
-                            <a
-                              href={`tel:${od.phone}`}
-                              className="bg-emerald-600 text-white px-2.5 py-1.5 rounded-xl font-bold flex items-center gap-1"
-                            >
-                              <Phone className="w-3 h-3" /> Call
-                            </a>
-                            <button
-                              onClick={() => openDirectChat(od.phone, od.name)}
-                              className="bg-blue-600 text-white px-2.5 py-1.5 rounded-xl font-bold"
-                            >
-                              Chat
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              </div>
+              <button type="submit" className={`w-full py-3 rounded-2xl text-xs font-black ${theme.btn3d}`}>
+                ডোনার ডেটা সেভ করুন
+              </button>
+            </form>
+          </div>
+        )}
 
-                {/* 2. PENDING PHONE NUMBER UNLOCK APPROVALS */}
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase text-blue-400 mb-2">
-                    Phone Number Unlock Requests ({pendingContactRequests.length} Pending / {contactRequestsMonitor.length} Total)
-                  </h3>
-                  {contactRequestsMonitor.length === 0 ? (
-                    <p className={`text-xs ${subText}`}>No phone unlock requests yet.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {contactRequestsMonitor.map((c) => (
-                        <div
-                          key={c.id}
-                          className={`p-3 rounded-2xl border text-xs space-y-1.5 ${
-                            c.status === "approved"
-                              ? "bg-emerald-500/10 border-emerald-500/30"
-                              : "bg-blue-500/15 border-blue-500/40"
-                          }`}
-                        >
-                          <div className="flex justify-between font-bold">
-                            <span>
-                              {c.requesterName} ({c.requesterPhone}) → {c.targetName} ({c.targetPhone})
-                            </span>
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded ${
-                                c.status === "approved"
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-amber-500 text-slate-950"
-                              }`}
-                            >
-                              {c.status === "approved" ? "Approved" : "Pending"}
-                            </span>
-                          </div>
-                          <div className="flex gap-2 pt-1">
-                            {c.status !== "approved" ? (
-                              <button
-                                onClick={() => {
-                                  update(ref(rtdb, `call_requests/${c.id}`), {
-                                    status: "approved",
-                                  });
-                                  alert("Approved! User can now see the phone number and call directly.");
-                                }}
-                                className="bg-emerald-600 text-white px-3 py-1 rounded-lg font-bold"
-                              >
-                                Approve Number & Call • অনুমোদন দিন
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  update(ref(rtdb, `call_requests/${c.id}`), {
-                                    status: "pending",
-                                  });
-                                }}
-                                className="bg-amber-600 text-white px-2.5 py-1 rounded-lg font-bold"
-                              >
-                                Revoke Access
-                              </button>
-                            )}
-                            <button
-                              onClick={() => remove(ref(rtdb, `call_requests/${c.id}`))}
-                              className="bg-red-600 text-white px-2.5 py-1 rounded-lg font-bold ml-auto"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+        {/* ================================================================== */}
+        {/* ট্যাব ৫: BLOOD BANK PORTAL TAB (ব্লাড ব্যাংক কর্তৃপক্ষের লাইভ স্টক আপডেট) */}
+        {/* ================================================================== */}
+        {activeTab === 'bank_portal' && isBloodBank && (
+          <div className="space-y-4">
+            {(() => {
+              const myBank = bloodBanks.find((b) => b.id === currentUser.bankId);
+              if (!myBank) return <p className="text-xs">ব্লাড ব্যাংক তথ্য পাওয়া যায়নি।</p>;
+              return (
+                <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
+                  <div>
+                    <h2 className="text-base font-black">🏥 {myBank.name}</h2>
+                    <p className={`text-xs ${theme.textSub}`}>{myBank.address} • {myBank.location}</p>
+                    <p className="text-[11px] text-emerald-600 font-bold mt-1">সর্বশেষ আপডেট: {myBank.updatedAt}</p>
+                  </div>
 
-                {/* 3. PENDING BLOOD REQUESTS VERIFICATION */}
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase text-purple-400 mb-2">
-                    Pending Blood Requests ({pendingAdminRequests.length} Awaiting Verification)
-                  </h3>
-                  {pendingAdminRequests.length === 0 ? (
-                    <p className={`text-xs ${subText}`}>No unverified requests right now.</p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {pendingAdminRequests.map((r) => (
-                        <div
-                          key={r.id}
-                          className="bg-purple-500/15 border border-purple-500/40 p-3.5 rounded-2xl space-y-2 text-xs"
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className="bg-red-600 text-white font-extrabold px-2 py-0.5 rounded">
-                              {r.bloodGroup} • {r.bagsNeeded}
-                            </span>
-                            <a
-                              href={`tel:${r.seekerPhone}`}
-                              className="bg-blue-600 text-white px-2.5 py-1 rounded-lg font-bold flex items-center gap-1"
-                            >
-                              <Phone className="w-3 h-3" /> Verify Call ({r.seekerPhone})
-                            </a>
-                          </div>
-                          <p className="font-bold">Hospital: {r.hospitalName}</p>
-                          <p className={subText}>
-                            Seeker: {r.seekerName} • Reason: {r.urgencyReason}
-                          </p>
-                          <div className="flex gap-2 pt-1">
-                            <button
-                              onClick={() => {
-                                update(ref(rtdb, `emergency_requests/${r.id}`), {
-                                  status: "searching",
-                                });
-                                alert("Approved! Emergency sirens & alerts sent to matching donors.");
-                              }}
-                              className={`flex-1 py-2 rounded-xl text-xs ${btn3DGreen}`}
-                            >
-                              Approve & Broadcast • অনুমোদন দিন
-                            </button>
-                            <button
-                              onClick={() => remove(ref(rtdb, `emergency_requests/${r.id}`))}
-                              className={`px-3 py-2 rounded-xl text-xs ${btn3DRed}`}
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 4. LIVE CHAT SURVEILLANCE MONITOR (ADMIN SEES EVERY MESSAGE) */}
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase text-rose-500 mb-2">
-                    Live Chat Surveillance ({allChatsMonitor.length} Messages)
-                  </h3>
-                  {allChatsMonitor.length === 0 ? (
-                    <p className={`text-xs ${subText}`}>No chat messages recorded yet.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-72 overflow-y-auto">
-                      {allChatsMonitor.map((m) => (
-                        <div
-                          key={m.msgId}
-                          className={`p-2.5 rounded-xl border text-xs flex justify-between items-start gap-2 ${
-                            darkMode ? "bg-slate-800/70 border-slate-700" : "bg-slate-50 border-slate-200"
-                          }`}
-                        >
-                          <div>
-                            <div className="font-bold text-[11px] text-amber-500">
-                              {m.senderName} ({m.senderPhone}) → {m.receiverName || "User"} (
-                              {m.receiverPhone || ""}) • <span className="text-slate-400">{m.time}</span>
-                            </div>
-                            <p className="mt-0.5">{m.text}</p>
-                          </div>
-                          <button
-                            onClick={() => remove(ref(rtdb, `chats/${m.roomId}/${m.msgId}`))}
-                            className="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold shrink-0"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 5. User Reviews Moderation */}
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase text-amber-500 mb-2">
-                    User Reviews Moderation ({pendingReviews.length} Pending / {approvedReviews.length} Published)
-                  </h3>
-                  {allReviews.length === 0 ? (
-                    <p className={`text-xs ${subText}`}>No reviews submitted yet.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-72 overflow-y-auto">
-                      {allReviews.map((rev) => (
-                        <div
-                          key={rev.id}
-                          className={`p-3 rounded-2xl border text-xs space-y-1.5 ${
-                            rev.approved
-                              ? darkMode
-                                ? "bg-slate-800/50 border-slate-700"
-                                : "bg-green-50/60 border-green-200"
-                              : darkMode
-                              ? "bg-amber-950/30 border-amber-700"
-                              : "bg-amber-50 border-amber-300"
-                          }`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className="font-bold">
-                              {rev.userName} ({rev.userPhone}) • ★{rev.rating}
-                            </span>
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded font-bold ${
-                                rev.approved
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-amber-500 text-slate-950"
-                              }`}
-                            >
-                              {rev.approved ? "Published" : "Pending"}
-                            </span>
-                          </div>
-                          <p>"{rev.comment}"</p>
-                          <div className="flex gap-2 pt-1">
-                            {!rev.approved && (
-                              <button
-                                onClick={async () => {
-                                  await updateDoc(doc(db, "user_reviews", rev.id), {
-                                    approved: true,
-                                  });
-                                  fetchReviews();
-                                }}
-                                className="bg-emerald-600 text-white px-3 py-1 rounded-lg font-bold flex items-center gap-1"
-                              >
-                                <CheckCircle2 className="w-3 h-3" /> Share / Publish
-                              </button>
-                            )}
+                  <div className="grid grid-cols-2 gap-3">
+                    {BLOOD_GROUPS.map((bg) => {
+                      const count = myBank.stock?.[bg] || 0;
+                      return (
+                        <div key={bg} className="p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between">
+                          <span className="font-black text-sm">{bg}</span>
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={async () => {
-                                if (window.confirm("Delete this review permanently?")) {
-                                  await deleteDoc(doc(db, "user_reviews", rev.id));
-                                  fetchReviews();
-                                }
+                                const next = Math.max(0, count - 1);
+                                await updateDoc(doc(db, 'bloodBanks', myBank.id), {
+                                  [`stock.${bg}`]: next,
+                                  updatedAt: new Date().toLocaleString()
+                                });
                               }}
-                              className="bg-red-600 text-white px-3 py-1 rounded-lg font-bold flex items-center gap-1"
+                              className="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-600 font-black flex items-center justify-center"
                             >
-                              <Trash2 className="w-3 h-3" /> Delete
+                              <Minus className="w-3.5 h-3.5" />
                             </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 6. Active Live Emergency Requests */}
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase text-red-500 mb-2">
-                    Active Live Requests ({liveAllRequests.filter((r) => r.status !== "pending_admin").length})
-                  </h3>
-                  {liveAllRequests.filter((r) => r.status !== "pending_admin").length === 0 ? (
-                    <p className={`text-xs ${subText}`}>No active live requests right now.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {liveAllRequests
-                        .filter((r) => r.status !== "pending_admin")
-                        .map((r) => (
-                          <div
-                            key={r.id}
-                            className="bg-red-500/10 border border-red-400/30 p-2.5 rounded-xl flex justify-between items-center text-xs"
-                          >
-                            <div>
-                              <b>{r.bloodGroup}</b> • {r.hospitalName} ({r.status})
-                            </div>
+                            <span className="font-black text-sm w-6 text-center">{count}</span>
                             <button
-                              onClick={() => remove(ref(rtdb, `emergency_requests/${r.id}`))}
-                              className="bg-red-600 text-white px-2.5 py-1 rounded-lg font-bold"
+                              onClick={async () => {
+                                const next = count + 1;
+                                await updateDoc(doc(db, 'bloodBanks', myBank.id), {
+                                  [`stock.${bg}`]: next,
+                                  updatedAt: new Date().toLocaleString()
+                                });
+                              }}
+                              className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 font-black flex items-center justify-center"
                             >
-                              Delete
+                              <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                        ))}
-                    </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* ট্যাব ৬: ADMIN PANEL (Master Admin-এর ৬টি আলাদা ট্যাব বনাম Hired Admin-এর সীমিত অ্যাক্সেস) */}
+        {/* ================================================================== */}
+        {activeTab === 'admin' && (isMasterAdmin || isHiredAdmin) && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-lg font-black">
+                {isMasterAdmin ? '👑 Master Admin Control' : '🛡️ Admin Coordinator Panel'}
+              </h2>
+            </div>
+
+            {/* যদি হায়ার করা Admin হয়: শুধুমাত্র ৩টি অনুমোদিত কাজ (রিকোয়েস্ট রিভিউ, নম্বর অ্যাক্সেস অনুমোদন, যোগাযোগ সমন্বয়) */}
+            {isHiredAdmin && (
+              <div className="space-y-4">
+                <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
+                  <h3 className="text-xs font-black uppercase">📞 পেন্ডিং ফোন নম্বর অ্যাক্সেস রিকোয়েস্ট ({pendingContactReqs.length})</h3>
+                  {pendingContactReqs.length === 0 ? (
+                    <p className={`text-xs ${theme.textSub}`}>কোনো পেন্ডিং নম্বর রিকোয়েস্ট নেই।</p>
+                  ) : (
+                    pendingContactReqs.map((cr) => (
+                      <div key={cr.id} className="p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-2">
+                        <div className="text-xs">
+                          <p className="font-bold">{cr.requesterName} ➔ {cr.targetName} ({cr.targetBloodGroup})</p>
+                          <p className="opacity-70">ডোনারের নম্বর: {cr.targetPhone}</p>
+                        </div>
+                        <button
+                          onClick={() => updateDoc(doc(db, 'contactRequests', cr.id), { status: 'approved' })}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold"
+                        >
+                          Approve
+                        </button>
+                      </div>
+                    ))
                   )}
                 </div>
 
-                {/* 7. Admin Reset User Password Box */}
-                {adminResetPassUser && (
-                  <div className="bg-purple-500/15 border border-purple-400/40 p-3.5 rounded-2xl space-y-2">
-                    <h4 className="font-bold text-xs text-purple-400">
-                      Reset Password for: {adminResetPassUser.name} ({adminResetPassUser.phone})
-                    </h4>
-                    <input
-                      type="text"
-                      value={adminNewPassVal}
-                      onChange={(e) => setAdminNewPassVal(e.target.value)}
-                      placeholder="Enter new password (Min 4 chars)"
-                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={async () => {
-                          if (adminNewPassVal.length < 4) {
-                            alert("Min 4 characters required.");
-                            return;
-                          }
-                          await updateDoc(doc(db, "users", adminResetPassUser.id), {
-                            password: adminNewPassVal,
-                          });
-                          setAdminResetPassUser(null);
-                          setAdminNewPassVal("");
-                          fetchAllUsers();
-                          alert("User password reset successfully!");
-                        }}
-                        className="flex-1 bg-purple-600 text-white py-1.5 rounded-xl text-xs font-bold"
-                      >
-                        Set Password
-                      </button>
-                      <button
-                        onClick={() => {
-                          setAdminResetPassUser(null);
-                          setAdminNewPassVal("");
-                        }}
-                        className="bg-slate-500/30 px-3 py-1.5 rounded-xl text-xs"
-                      >
-                        Cancel
-                      </button>
+                <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
+                  <h3 className="text-xs font-black uppercase">🩸 রক্তের রিকোয়েস্ট রিভিউ ও সমন্বয়</h3>
+                  {bloodRequests.map((req) => (
+                    <div key={req.id} className="p-3 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs">
+                      <p className="font-black">{req.patientName} • {req.bloodGroup} ({req.bags} ব্যাগ)</p>
+                      <p className="opacity-75">হাসপাতাল: {req.hospital} | যোগাযোগ: {req.contactPhone || req.requesterPhone}</p>
+                      <div className="flex gap-2 pt-1">
+                        <a href={`tel:${req.contactPhone || req.requesterPhone}`} className="px-3 py-1 rounded-lg bg-sky-600 text-white font-bold">
+                          রোগীকে কল করুন
+                        </a>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
+              </div>
+            )}
 
-                {/* 8. Admin Edit User Form */}
-                {adminEditUser && (
-                  <div className="bg-amber-500/15 border border-amber-400/40 p-3.5 rounded-2xl space-y-2">
-                    <h4 className="font-bold text-xs text-amber-500">
-                      Edit User: {adminEditUser.phone}
-                    </h4>
-                    <input
-                      type="text"
-                      value={adminEditUser.name}
-                      onChange={(e) => setAdminEditUser({ ...adminEditUser, name: e.target.value })}
-                      className={`w-full border rounded-xl p-2 text-xs ${inputBg}`}
-                      placeholder="Name"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={adminEditUser.bloodGroup}
-                        onChange={(e) =>
-                          setAdminEditUser({ ...adminEditUser, bloodGroup: e.target.value })
-                        }
-                        className={`border rounded-xl p-2 text-xs font-bold ${inputBg}`}
-                      >
-                        {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
-                          <option key={bg} value={bg}>
-                            {bg}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        value={adminEditUser.address}
-                        onChange={(e) =>
-                          setAdminEditUser({ ...adminEditUser, address: e.target.value })
-                        }
-                        className={`border rounded-xl p-2 text-xs ${inputBg}`}
-                        placeholder="Address"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={async () => {
-                          await updateDoc(doc(db, "users", adminEditUser.id), {
-                            name: adminEditUser.name,
-                            bloodGroup: adminEditUser.bloodGroup,
-                            address: adminEditUser.address,
-                          });
-                          setAdminEditUser(null);
-                          fetchAllUsers();
-                          alert("User updated!");
-                        }}
-                        className="flex-1 bg-emerald-600 text-white py-1.5 rounded-xl text-xs font-bold"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setAdminEditUser(null)}
-                        className="bg-slate-500/30 px-3 py-1.5 rounded-xl text-xs"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
+            {/* যদি Master Admin হয়: ৬টি আলাদা পরিচ্ছন্ন সাব-ট্যাব */}
+            {isMasterAdmin && (
+              <>
+                <div className="flex gap-2 overflow-x-auto pb-1.5">
+                  {[
+                    { id: 'radar', label: 'Live Radar & Alarm' },
+                    { id: 'messages', label: 'User Messages' },
+                    { id: 'donors', label: 'Manage Donors' },
+                    { id: 'create', label: 'Create Accounts' },
+                    { id: 'data_entry', label: 'Data Entry' },
+                    { id: 'security', label: 'Security & Dev' }
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setAdminSubTab(tab.id)}
+                      className={`px-3.5 py-2 rounded-2xl text-xs font-black shrink-0 border transition-all ${
+                        adminSubTab === tab.id ? theme.btn3d : `${theme.card}`
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
 
-                {/* 9. All Registered Users Management */}
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase mb-2">
-                    All Registered Users ({allUsers.length}) — Full Numbers Visible to Admin
-                  </h3>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {allUsers.map((u) => (
-                      <div
-                        key={u.id}
-                        className={`border rounded-2xl p-3 flex flex-col gap-2 text-xs ${
-                          u.banned
-                            ? "bg-red-900/25 border-red-600"
-                            : (u.reports || 0) > 0
-                            ? "bg-red-500/15 border-red-400"
-                            : darkMode
-                            ? "bg-slate-800/60 border-slate-700"
-                            : "bg-slate-50 border-slate-200"
-                        }`}
-                      >
+                {/* সাব-ট্যাব ১: LIVE RADAR & ALARM */}
+                {adminSubTab === 'radar' && (
+                  <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
+                    <h3 className="text-xs font-black uppercase">📡 Live Donor Radar & Emergency Alarm</h3>
+                    {activeDonorsList.map((d) => (
+                      <div key={d.id} className="p-3 rounded-2xl border border-slate-200/70 flex items-center justify-between">
                         <div>
-                          <div className="font-bold flex items-center gap-1 flex-wrap">
-                            {u.name} ({u.bloodGroup} • {u.gender || "Male"})
-                            {u.verified && <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />}
-                            {u.banned && (
-                              <span className="bg-red-700 text-white text-[9px] px-1.5 py-0.5 rounded">
-                                BANNED
-                              </span>
-                            )}
-                            {(u.phone === MASTER_ADMIN_PHONE || u.role === "admin") && (
-                              <span className="bg-purple-600 text-white text-[9px] px-1.5 py-0.5 rounded">
-                                ADMIN
-                              </span>
-                            )}
-                            {(u.reports || 0) > 0 && (
-                              <span className="bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded">
-                                {u.reports} Reports
-                              </span>
-                            )}
-                          </div>
-                          <div className={subText}>
-                            <a href={`tel:${u.phone}`} className="text-emerald-400 font-bold underline">
-                              {u.phone}
-                            </a>{" "}
-                            • {u.address}
-                          </div>
+                          <p className="font-bold text-sm">{d.name} ({d.bloodGroup})</p>
+                          <p className="text-[11px] opacity-70">{d.phone} • {d.location || 'লোকেশন নেই'}</p>
                         </div>
-
-                        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-slate-500/20">
-                          <button
-                            onClick={() => setAdminEditUser(u)}
-                            className="bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1"
-                          >
-                            <Edit3 className="w-3 h-3" /> Edit
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setAdminResetPassUser(u);
-                              setAdminNewPassVal("");
-                            }}
-                            className="bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1"
-                          >
-                            <KeyRound className="w-3 h-3" /> Reset Pass
-                          </button>
-
-                          <button
-                            onClick={async () => {
-                              await updateDoc(doc(db, "users", u.id), { verified: !u.verified });
-                              fetchAllUsers();
-                            }}
-                            className="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1"
-                          >
-                            <UserCheck className="w-3 h-3" /> {u.verified ? "Unverify" : "Verify"}
-                          </button>
-
-                          {u.phone !== MASTER_ADMIN_PHONE && (
-                            <>
-                              <button
-                                onClick={async () => {
-                                  await updateDoc(doc(db, "users", u.id), { banned: !u.banned });
-                                  fetchAllUsers();
-                                }}
-                                className="bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1"
-                              >
-                                <Ban className="w-3 h-3" /> {u.banned ? "Unban" : "Ban"}
-                              </button>
-
-                              <button
-                                onClick={async () => {
-                                  const nextRole = u.role === "admin" ? "user" : "admin";
-                                  await updateDoc(doc(db, "users", u.id), { role: nextRole });
-                                  fetchAllUsers();
-                                }}
-                                className="bg-purple-500/20 text-purple-400 px-2.5 py-1 rounded-lg font-semibold"
-                              >
-                                {u.role === "admin" ? "Remove Admin" : "Make Admin"}
-                              </button>
-
-                              <button
-                                onClick={async () => {
-                                  if (window.confirm(`Delete ${u.name}'s account permanently?`)) {
-                                    await deleteDoc(doc(db, "users", u.id));
-                                    fetchAllUsers();
-                                  }
-                                }}
-                                className="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1"
-                              >
-                                <Trash2 className="w-3 h-3" /> Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        <button
+                          onClick={async () => {
+                            await updateDoc(doc(db, 'users', d.id), {
+                              activeAlarm: {
+                                timestamp: Date.now(),
+                                message: `🚨 জরুরি রক্তের প্রয়োজন (${d.bloodGroup})! অনুগ্রহ করে এখনই সাড়া দিন।`
+                              }
+                            });
+                            alert(`${d.name}-এর ফোনে ইমার্জেন্সি অ্যালার্ম পাঠানো হয়েছে!`);
+                          }}
+                          className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1 ${theme.btn3d}`}
+                        >
+                          <Volume2 className="w-3.5 h-3.5" /> Ring Alarm
+                        </button>
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
+                )}
+
+                {/* সাব-ট্যাব ২: USER MESSAGES (Sender ➔ Receiver স্পষ্টভাবে দেখানো + ডিলিট/ব্যান) */}
+                {adminSubTab === 'messages' && (
+                  <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
+                    <h3 className="text-xs font-black uppercase">💬 All User Messages (Sender ➔ Receiver)</h3>
+                    <div className="space-y-2.5 max-h-[420px] overflow-y-auto">
+                      {messages.length === 0 ? (
+                        <p className={`text-xs ${theme.textSub}`}>কোনো মেসেজ নেই।</p>
+                      ) : (
+                        messages.map((m) => (
+                          <div key={m.id} className="p-3 rounded-2xl border border-slate-200/80 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className={`px-2.5 py-0.5 rounded-lg text-[11px] font-black border ${theme.badge}`}>
+                                {m.senderName} ➔ {m.receiverName}
+                              </span>
+                              <button
+                                onClick={() => deleteDoc(doc(db, 'messages', m.id))}
+                                className="text-rose-500 p-1"
+                                title="Delete Message"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <p className="text-xs font-medium">{m.text}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* সাব-ট্যাব ৩: MANAGE DONORS (প্রোফাইল ফুল এডিট + পেন্ডিং নম্বর রিকোয়েস্ট অ্যাপ্রুভাল) */}
+                {adminSubTab === 'donors' && (
+                  <div className="space-y-4">
+                    {/* পেন্ডিং নম্বর রিকোয়েস্ট */}
+                    <div className={`p-4 rounded-3xl border space-y-2.5 ${theme.card}`}>
+                      <h3 className="text-xs font-black uppercase">🔑 Pending Phone Number Requests ({pendingContactReqs.length})</h3>
+                      {pendingContactReqs.map((cr) => (
+                        <div key={cr.id} className="p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between">
+                          <span className="text-xs font-bold">{cr.requesterName} ➔ {cr.targetName}</span>
+                          <button
+                            onClick={() => updateDoc(doc(db, 'contactRequests', cr.id), { status: 'approved' })}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold"
+                          >
+                            Approve
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* সব ডোনার লিস্ট ও ফুল প্রোফাইল এডিট */}
+                    <div className={`p-4 rounded-3xl border space-y-2.5 ${theme.card}`}>
+                      <h3 className="text-xs font-black uppercase">👥 All Donors (Full Profile Edit & Ban)</h3>
+                      {users
+                        .filter((u) => u.role !== 'master_admin')
+                        .map((u) => (
+                          <div key={u.id} className="p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between">
+                            <div>
+                              <p className="font-bold text-sm">
+                                {u.name} ({u.bloodGroup}) {u.isBanned && <span className="text-rose-600 text-xs">[BANNED]</span>}
+                              </p>
+                              <p className="text-[11px] opacity-70">{u.phone} • Role: {u.role}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => setEditingDonorModal({ ...u })}
+                                className="p-2 rounded-xl bg-sky-500/15 text-sky-600"
+                                title="Edit Profile"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => updateDoc(doc(db, 'users', u.id), { isBanned: !u.isBanned })}
+                                className="p-2 rounded-xl bg-amber-500/15 text-amber-600"
+                                title="Ban / Unban"
+                              >
+                                <Ban className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => deleteDoc(doc(db, 'users', u.id))}
+                                className="p-2 rounded-xl bg-rose-500/15 text-rose-600"
+                                title="Delete User"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* সাব-ট্যাব ৪: CREATE ACCOUNTS (Email OTP ভেরিফিকেশনসহ Admin, Data Entry ও Blood Bank তৈরি) */}
+                {adminSubTab === 'create' && (
+                  <div className="space-y-4">
+                    <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
+                      <h3 className="text-sm font-black">➕ Create Special Account (Email OTP Protected)</h3>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: 'admin', label: 'Admin' },
+                          { id: 'data_entry', label: 'Data Entry' },
+                          { id: 'blood_bank', label: 'Blood Bank' }
+                        ].map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => { setCreateAccountType(t.id); setOtpState({ step: 'idle', generatedCode: '', inputCode: '', purpose: '' }); }}
+                            className={`py-2 rounded-xl text-xs font-black border ${
+                              createAccountType === t.id ? theme.btn3d : 'bg-white/80 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          placeholder={createAccountType === 'blood_bank' ? 'ব্লাড ব্যাংকের নাম' : 'পুরো নাম'}
+                          value={newAccForm.name}
+                          onChange={(e) => setNewAccForm({ ...newAccForm, name: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                        <input
+                          type="tel"
+                          placeholder="মোবাইল নম্বর (লগইন আইডি)"
+                          value={newAccForm.phone}
+                          onChange={(e) => setNewAccForm({ ...newAccForm, phone: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                        {createAccountType === 'blood_bank' && (
+                          <>
+                            <input
+                              type="text"
+                              placeholder="পূর্ণ ঠিকানা (Address)"
+                              value={newAccForm.address}
+                              onChange={(e) => setNewAccForm({ ...newAccForm, address: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                            />
+                            <input
+                              type="text"
+                              placeholder="এলাকা / লোকেশন"
+                              value={newAccForm.location}
+                              onChange={(e) => setNewAccForm({ ...newAccForm, location: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                            />
+                          </>
+                        )}
+                        <input
+                          type="password"
+                          placeholder="গোপন PIN সেট করুন"
+                          value={newAccForm.pin}
+                          onChange={(e) => setNewAccForm({ ...newAccForm, pin: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+
+                        {otpState.step === 'idle' || otpState.purpose !== 'create_account' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!newAccForm.name || !newAccForm.phone || !newAccForm.pin) {
+                                alert('সবগুলো তথ্য পূরণ করুন।');
+                                return;
+                              }
+                              sendEmailOtp('create_account');
+                            }}
+                            className={`w-full py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 ${theme.btn3d}`}
+                          >
+                            <Mail className="w-4 h-4" /> Send Email Verification Code
+                          </button>
+                        ) : (
+                          <div className="space-y-2 pt-2 border-t border-slate-200">
+                            <input
+                              type="text"
+                              placeholder="ইমেইলে পাঠানো ৬ ডিজিটের কোড লিখুন"
+                              value={otpState.inputCode}
+                              onChange={(e) => setOtpState({ ...otpState, inputCode: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-emerald-500 bg-white text-slate-900 text-xs font-black text-center tracking-widest"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleVerifyAndExecute}
+                              className="w-full py-3 rounded-2xl bg-emerald-600 text-white text-xs font-black"
+                            >
+                              ✓ Verify & Create Account
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* অ্যাম্বুলেন্স যোগ করার অপশন */}
+                    <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
+                      <h3 className="text-xs font-black uppercase">🚑 Add Emergency Ambulance</h3>
+                      <input
+                        type="text"
+                        placeholder="অ্যাম্বুলেন্স সার্ভিসের নাম"
+                        value={newAmbForm.name}
+                        onChange={(e) => setNewAmbForm({ ...newAmbForm, name: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="এলাকা"
+                          value={newAmbForm.area}
+                          onChange={(e) => setNewAmbForm({ ...newAmbForm, area: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                        <input
+                          type="tel"
+                          placeholder="হেল্পলাইন নম্বর"
+                          value={newAmbForm.phone}
+                          onChange={(e) => setNewAmbForm({ ...newAmbForm, phone: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newAmbForm.name || !newAmbForm.phone) return;
+                          await addDoc(collection(db, 'ambulances'), newAmbForm);
+                          setNewAmbForm({ name: '', area: '', phone: '' });
+                          alert('অ্যাম্বুলেন্স যুক্ত হয়েছে!');
+                        }}
+                        className={`w-full py-2.5 rounded-xl text-xs font-black ${theme.btn3d}`}
+                      >
+                        অ্যাম্বুলেন্স যোগ করুন
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* সাব-ট্যাব ৫: ADMIN MANUAL DATA ENTRY */}
+                {adminSubTab === 'data_entry' && (
+                  <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
+                    <h3 className="text-sm font-black">📝 Admin Manual Donor Entry</h3>
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!manualDonorForm.name || !manualDonorForm.phone) return;
+                        await addDoc(collection(db, 'users'), {
+                          ...manualDonorForm,
+                          pin: '1234',
+                          role: 'donor',
+                          addedByOperator: 'Master Admin',
+                          donationCount: 0,
+                          verifiedDonations: 0,
+                          reviews: [],
+                          isBanned: false,
+                          createdAtMs: Date.now()
+                        });
+                        setManualDonorForm({ name: '', phone: '', bloodGroup: 'A+', location: '', lastDonationDate: '' });
+                        alert('ডোনার ডেটা সফলভাবে যুক্ত হয়েছে!');
+                      }}
+                      className="space-y-3"
+                    >
+                      <input
+                        type="text"
+                        required
+                        placeholder="ডোনারের নাম"
+                        value={manualDonorForm.name}
+                        onChange={(e) => setManualDonorForm({ ...manualDonorForm, name: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                      <input
+                        type="tel"
+                        required
+                        placeholder="মোবাইল নম্বর"
+                        value={manualDonorForm.phone}
+                        onChange={(e) => setManualDonorForm({ ...manualDonorForm, phone: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                      <select
+                        value={manualDonorForm.bloodGroup}
+                        onChange={(e) => setManualDonorForm({ ...manualDonorForm, bloodGroup: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs font-bold"
+                      >
+                        {BLOOD_GROUPS.map((bg) => (
+                          <option key={bg} value={bg}>{bg}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="লোকেশন"
+                        value={manualDonorForm.location}
+                        onChange={(e) => setManualDonorForm({ ...manualDonorForm, location: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                      <button type="submit" className={`w-full py-3 rounded-2xl text-xs font-black ${theme.btn3d}`}>
+                        ডোনার সেভ করুন
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* সাব-ট্যাব ৬: SECURITY (Email OTP দিয়ে Master Admin নম্বর/PIN পরিবর্তন) & DEVELOPER INFO EDIT */}
+                {adminSubTab === 'security' && (
+                  <div className="space-y-4">
+                    <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
+                      <h3 className="text-sm font-black">🔐 Master Admin Security (Email OTP Required)</h3>
+                      <div>
+                        <label className="block text-[11px] font-bold mb-1">Recovery Email (OTP যাবে এখানে)</label>
+                        <input
+                          type="email"
+                          value={secForm.recoveryEmail}
+                          onChange={(e) => setSecForm({ ...secForm, recoveryEmail: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold mb-1">Master Admin Phone Number</label>
+                        <input
+                          type="tel"
+                          value={secForm.phone}
+                          onChange={(e) => setSecForm({ ...secForm, phone: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold mb-1">Master Admin Secret PIN</label>
+                        <input
+                          type="text"
+                          value={secForm.pin}
+                          onChange={(e) => setSecForm({ ...secForm, pin: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                      </div>
+
+                      {otpState.step === 'idle' || otpState.purpose !== 'update_master' ? (
+                        <button
+                          type="button"
+                          onClick={() => sendEmailOtp('update_master')}
+                          className={`w-full py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 ${theme.btn3d}`}
+                        >
+                          <Mail className="w-4 h-4" /> Send OTP to Update Credentials
+                        </button>
+                      ) : (
+                        <div className="space-y-2 pt-2 border-t border-slate-200">
+                          <input
+                            type="text"
+                            placeholder="৬ ডিজিটের OTP লিখুন"
+                            value={otpState.inputCode}
+                            onChange={(e) => setOtpState({ ...otpState, inputCode: e.target.value })}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-emerald-500 bg-white text-slate-900 text-xs font-black text-center"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleVerifyAndExecute}
+                            className="w-full py-3 rounded-2xl bg-emerald-600 text-white text-xs font-black"
+                          >
+                            ✓ Verify & Save Credentials
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Developer Info Edit (Profile ও About Us-এ আপডেট হবে) */}
+                    <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
+                      <h3 className="text-sm font-black">👨‍💻 Edit Developer Information</h3>
+                      <input
+                        type="text"
+                        placeholder="Developer Name"
+                        value={devEditForm.devName}
+                        onChange={(e) => setDevEditForm({ ...devEditForm, devName: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Role / Title"
+                        value={devEditForm.devRole}
+                        onChange={(e) => setDevEditForm({ ...devEditForm, devRole: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                      <textarea
+                        rows={2}
+                        placeholder="Short Bio"
+                        value={devEditForm.devBio}
+                        onChange={(e) => setDevEditForm({ ...devEditForm, devBio: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Contact Info"
+                        value={devEditForm.devContact}
+                        onChange={(e) => setDevEditForm({ ...devEditForm, devContact: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await setDoc(doc(db, 'system', 'masterConfig'), { ...masterConfig, ...devEditForm }, { merge: true });
+                          alert('ডেভেলপার পরিচিতি আপডেট হয়েছে!');
+                        }}
+                        className={`w-full py-3 rounded-2xl text-xs font-black ${theme.btn3d}`}
+                      >
+                        ডেভেলপার তথ্য সেভ করুন
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
       </main>
 
-      {/* CLEAN 3-ITEM BOTTOM NAVIGATION BAR */}
-      <nav
-        className={`fixed bottom-0 inset-x-0 border-t shadow-2xl flex justify-around py-2.5 z-40 backdrop-blur-md ${currentTheme.navBg}`}
-      >
-        <button
-          onClick={() => {
-            setActiveTab("radar");
-            setShowMoreMenu(false);
-          }}
-          className={`flex flex-col items-center text-xs font-extrabold transition ${
-            activeTab === "radar" ? `${currentTheme.accentText} scale-105` : "text-slate-400"
-          }`}
-        >
-          <Radio className="w-5 h-5 mb-0.5" /> Radar (রাডার)
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveTab("directory");
-            setShowMoreMenu(false);
-          }}
-          className={`flex flex-col items-center text-xs font-extrabold transition ${
-            activeTab === "directory" ? `${currentTheme.accentText} scale-105` : "text-slate-400"
-          }`}
-        >
-          <Users className="w-5 h-5 mb-0.5" /> Donors (রক্তদাতা)
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveTab("profile");
-            setShowMoreMenu(false);
-          }}
-          className={`flex flex-col items-center text-xs font-extrabold transition ${
-            activeTab === "profile" ? `${currentTheme.accentText} scale-105` : "text-slate-400"
-          }`}
-        >
-          <User className="w-5 h-5 mb-0.5" /> Profile (প্রোফাইল)
-        </button>
+      {/* ==================================================================== */}
+      {/* 3D ফ্লোটিং বটম নেভিগেশন বার (রোল-ভিত্তিক) */}
+      {/* ==================================================================== */}
+      <nav className={`fixed bottom-3 left-3 right-3 max-w-xl mx-auto z-30 rounded-3xl border px-2 py-2 backdrop-blur-lg ${theme.navBg}`}>
+        <div className="flex items-center justify-around">
+          {navTabs.map((tab) => {
+            const IconComp = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id !== 'redpulse') setRedpulseSubView(null);
+                }}
+                className={`flex flex-col items-center justify-center py-2 px-4 rounded-2xl transition-all ${
+                  isActive ? `${theme.btn3d} -translate-y-1.5` : `${theme.textSub} hover:opacity-80`
+                }`}
+              >
+                <IconComp className="w-5 h-5" />
+                <span className="text-[10px] font-black mt-1">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
+
+      {/* ==================================================================== */}
+      {/* পপ-আপ ১: ডোনার প্রোফাইল ডিটেইলস মডাল (নাম বা অ্যাভাটারে ক্লিক করলে খুলবে) */}
+      {/* ==================================================================== */}
+      {selectedDonorModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-3xl border p-6 space-y-4 ${theme.card}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-2xl ${theme.btn3d} flex items-center justify-center font-black text-lg`}>
+                  {selectedDonorModal.name?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="font-black text-base flex items-center gap-1.5">
+                    {selectedDonorModal.name}
+                    {(selectedDonorModal.verifiedDonations || 0) > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] font-black">
+                        ✓ Verified
+                      </span>
+                    )}
+                  </h3>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-black border ${theme.badge}`}>
+                    Blood Group: {selectedDonorModal.bloodGroup}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setSelectedDonorModal(null)} className="p-2 rounded-xl bg-slate-200/60">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* ১২০ দিনের কুলডাউন ও রেডিনেস স্ট্যাটাস */}
+            {(() => {
+              const st = calculateDonorReadiness(selectedDonorModal);
+              return (
+                <div className={`p-3 rounded-2xl border text-xs font-black ${st.isReady ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' : 'bg-amber-500/10 border-amber-500/30 text-amber-600'}`}>
+                  {st.isReady ? `✅ ${st.reason}` : `⏳ ${st.reason}`}
+                </div>
+              );
+            })()}
+
+            {/* বিস্তারিত তথ্য */}
+            <div className="grid grid-cols-2 gap-2.5 text-xs">
+              <div className="p-2.5 rounded-xl border border-slate-200/70">
+                <span className="opacity-60 block text-[10px]">এলাকা</span>
+                <strong>{selectedDonorModal.location || 'উল্লেখ নেই'}</strong>
+              </div>
+              <div className="p-2.5 rounded-xl border border-slate-200/70">
+                <span className="opacity-60 block text-[10px]">ভেরিফায়েড রক্তদান</span>
+                <strong>{selectedDonorModal.verifiedDonations || 0} বার</strong>
+              </div>
+              <div className="p-2.5 rounded-xl border border-slate-200/70">
+                <span className="opacity-60 block text-[10px]">বয়স ও ওজন</span>
+                <strong>{selectedDonorModal.age || '-'} বছর / {selectedDonorModal.weight || '-'} কেজি</strong>
+              </div>
+              <div className="p-2.5 rounded-xl border border-slate-200/70">
+                <span className="opacity-60 block text-[10px]">শেষ রক্তদান</span>
+                <strong>{selectedDonorModal.lastDonationDate || 'নতুন ডোনার'}</strong>
+              </div>
+            </div>
+
+            {/* রোগীর স্বজনদের রিভিউ (Verified Donations) */}
+            {selectedDonorModal.reviews && selectedDonorModal.reviews.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-black uppercase opacity-70">Thank You & Verified Reviews</p>
+                <div className="max-h-24 overflow-y-auto space-y-1.5">
+                  {selectedDonorModal.reviews.map((rev, i) => (
+                    <div key={i} className="p-2 rounded-xl bg-emerald-500/10 text-[11px]">
+                      <strong>{rev.from}</strong> ({rev.hospital}): {rev.note}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ফোন নম্বর (শুধুমাত্র অ্যাডমিন অ্যাপ্রুভাল থাকলে দেখাবে) */}
+            <div className="p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between">
+              <span className="text-xs font-bold">
+                {isPhoneApproved(selectedDonorModal.phone)
+                  ? `📞 ${selectedDonorModal.phone}`
+                  : `🔒 ${selectedDonorModal.phone?.slice(0, 3)}••••••${selectedDonorModal.phone?.slice(-2)}`}
+              </span>
+              {isPhoneApproved(selectedDonorModal.phone) ? (
+                <a href={`tel:${selectedDonorModal.phone}`} className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-black">
+                  কল করুন
+                </a>
+              ) : (
+                <button
+                  onClick={() => handleRequestPhoneNumber(selectedDonorModal)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black ${theme.btn3d}`}
+                >
+                  Request Number
+                </button>
+              )}
+            </div>
+
+            {/* লাইভ চ্যাট বাটন (রোল অনুযায়ী) */}
+            {selectedDonorModal.phone !== currentUser.phone && (
+              <button
+                onClick={() => {
+                  setChatReceiver(selectedDonorModal);
+                  setSelectedDonorModal(null);
+                  setActiveTab('redpulse');
+                  setRedpulseSubView(isMasterAdmin || isHiredAdmin ? 'all_donors' : 'available_donors');
+                }}
+                className={`w-full py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 ${theme.btn3d}`}
+              >
+                <Send className="w-4 h-4" /> Live Chat শুরু করুন
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* পপ-আপ ২: ব্লাড ব্যাংক স্টক ডিটেইলস মডাল (ব্যাংকের নামে ক্লিক করলে খুলবে) */}
+      {/* ==================================================================== */}
+      {selectedBankModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-3xl border p-6 space-y-4 ${theme.card}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-base">🏥 {selectedBankModal.name}</h3>
+                <p className={`text-xs ${theme.textSub}`}>{selectedBankModal.address} • {selectedBankModal.location}</p>
+              </div>
+              <button onClick={() => setSelectedBankModal(null)} className="p-2 rounded-xl bg-slate-200/60">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2.5">
+              {BLOOD_GROUPS.map((bg) => {
+                const bags = selectedBankModal.stock?.[bg] || 0;
+                return (
+                  <div
+                    key={bg}
+                    className={`p-3 rounded-2xl border text-center ${
+                      bags > 0 ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-rose-500/10 border-rose-500/30 opacity-60'
+                    }`}
+                  >
+                    <span className="block font-black text-sm">{bg}</span>
+                    <span className={`text-xs font-bold ${bags > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {bags} ব্যাগ
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+              <span className="text-[11px] opacity-70">আপডেট: {selectedBankModal.updatedAt}</span>
+              <a href={`tel:${selectedBankModal.phone}`} className={`px-4 py-2 rounded-xl text-xs font-black ${theme.btn3d}`}>
+                📞 কল করুন ({selectedBankModal.phone})
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* পপ-আপ ৩: নতুন রক্তের রিকোয়েস্ট ফর্ম (Request Blood বাটন চাপলে) */}
+      {/* ==================================================================== */}
+      {showRequestModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-3xl border p-6 space-y-4 ${theme.card}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-base">🩸 জরুরি রক্তের রিকোয়েস্ট পাঠান</h3>
+              <button onClick={() => setShowRequestModal(false)} className="p-2 rounded-xl bg-slate-200/60">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateBloodRequest} className="space-y-3">
+              <input
+                type="text"
+                required
+                placeholder="রোগীর নাম"
+                value={reqForm.patientName}
+                onChange={(e) => setReqForm({ ...reqForm, patientName: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+              />
+              <div className="grid grid-cols-2 gap-2.5">
+                <select
+                  value={reqForm.bloodGroup}
+                  onChange={(e) => setReqForm({ ...reqForm, bloodGroup: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs font-black"
+                >
+                  {BLOOD_GROUPS.map((bg) => (
+                    <option key={bg} value={bg}>{bg}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={reqForm.bags}
+                  onChange={(e) => setReqForm({ ...reqForm, bags: Number(e.target.value) })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs font-bold"
+                  placeholder="কত ব্যাগ"
+                />
+              </div>
+              <input
+                type="text"
+                required
+                placeholder="হাসপাতালের নাম ও ঠিকানা"
+                value={reqForm.hospital}
+                onChange={(e) => setReqForm({ ...reqForm, hospital: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+              />
+              <input
+                type="tel"
+                placeholder="যোগাযোগের নম্বর (ঐচ্ছিক)"
+                value={reqForm.contactPhone}
+                onChange={(e) => setReqForm({ ...reqForm, contactPhone: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+              />
+              <button type="submit" className={`w-full py-3.5 rounded-2xl text-xs font-black ${theme.btn3d}`}>
+                রিকোয়েস্ট প্রকাশ করুন
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* পপ-আপ ৪: অ্যাডমিন কর্তৃক ইউজার প্রোফাইল ফুল এডিট মডাল */}
+      {/* ==================================================================== */}
+      {editingDonorModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-3xl border p-6 space-y-3 ${theme.card}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-sm">✏️ Full Profile Edit ({editingDonorModal.name})</h3>
+              <button onClick={() => setEditingDonorModal(null)} className="p-2 rounded-xl bg-slate-200/60">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2.5 text-xs">
+              <input
+                type="text"
+                placeholder="নাম"
+                value={editingDonorModal.name || ''}
+                onChange={(e) => setEditingDonorModal({ ...editingDonorModal, name: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={editingDonorModal.bloodGroup}
+                  onChange={(e) => setEditingDonorModal({ ...editingDonorModal, bloodGroup: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 font-bold"
+                >
+                  {BLOOD_GROUPS.map((bg) => (
+                    <option key={bg} value={bg}>{bg}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="লোকেশন"
+                  value={editingDonorModal.location || ''}
+                  onChange={(e) => setEditingDonorModal({ ...editingDonorModal, location: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={editingDonorModal.lastDonationDate || ''}
+                  onChange={(e) => setEditingDonorModal({ ...editingDonorModal, lastDonationDate: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900"
+                />
+                <input
+                  type="number"
+                  placeholder="Verified Donations"
+                  value={editingDonorModal.verifiedDonations || 0}
+                  onChange={(e) => setEditingDonorModal({ ...editingDonorModal, verifiedDonations: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900"
+                />
+              </div>
+              <button
+                onClick={async () => {
+                  const { id, ...rest } = editingDonorModal;
+                  await updateDoc(doc(db, 'users', id), rest);
+                  setEditingDonorModal(null);
+                  alert('ইউজারের প্রোফাইল সম্পূর্ণ আপডেট করা হয়েছে!');
+                }}
+                className={`w-full py-3 rounded-2xl font-black ${theme.btn3d}`}
+              >
+                পরিবর্তন সেভ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* পপ-আপ ৫: লাইভ GPS লোকেশন ট্র্যাকিং মডাল (ডোনার রিকোয়েস্ট Accept করলে দেখাবে) */}
+      {/* ==================================================================== */}
+      {trackingRequestModal && trackingRequestModal.donorLiveLocation && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-3xl border p-6 space-y-4 ${theme.card}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-base">📍 Donor Live Location</h3>
+              <button onClick={() => setTrackingRequestModal(null)} className="p-2 rounded-xl bg-slate-200/60">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs font-bold">
+              ডোনার: {trackingRequestModal.acceptedByName} • আপডেট: {trackingRequestModal.donorLiveLocation.updatedAt}
+            </p>
+            <div className="w-full h-56 rounded-2xl overflow-hidden border">
+              <iframe
+                title="Live Donor Map"
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${
+                  trackingRequestModal.donorLiveLocation.lng - 0.01
+                },${trackingRequestModal.donorLiveLocation.lat - 0.01},${
+                  trackingRequestModal.donorLiveLocation.lng + 0.01
+                },${trackingRequestModal.donorLiveLocation.lat + 0.01}&layer=mapnik&marker=${
+                  trackingRequestModal.donorLiveLocation.lat
+                },${trackingRequestModal.donorLiveLocation.lng}`}
+              />
+            </div>
+            <a
+              href={`https://www.google.com/maps?q=${trackingRequestModal.donorLiveLocation.lat},${trackingRequestModal.donorLiveLocation.lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className={`w-full py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 ${theme.btn3d}`}
+            >
+              Google Maps-এ লাইভ দেখুন
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* পপ-আপ ৬: অ্যাডমিন কন্ট্রোলড ইমার্জেন্সি অ্যালার্ম স্ক্রিন */}
+      {/* ==================================================================== */}
+      {activeAlarmAlert && (
+        <div className="fixed inset-0 z-50 bg-rose-950/90 backdrop-blur-md flex items-center justify-center p-5 text-white text-center">
+          <div className="max-w-sm space-y-5">
+            <div className="w-20 h-20 mx-auto rounded-full bg-rose-600 flex items-center justify-center animate-ping">
+              <Volume2 className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-black">🚨 EMERGENCY ALARM!</h2>
+            <p className="text-sm font-semibold">{activeAlarmAlert.message}</p>
+            <button
+              onClick={async () => {
+                setActiveAlarmAlert(null);
+                if (currentUser?.id && currentUser.id !== 'master_admin') {
+                  await updateDoc(doc(db, 'users', currentUser.id), { activeAlarm: null });
+                }
+              }}
+              className="w-full py-4 rounded-2xl bg-white text-rose-700 font-black text-sm shadow-xl"
+            >
+              অ্যালার্ম বন্ধ করুন ও দেখুন
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* নোটিফিকেশন ড্রয়ার */}
+      {/* ==================================================================== */}
+      {showNotifDrawer && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex justify-end">
+          <div className={`w-80 h-full p-5 border-l overflow-y-auto space-y-4 ${theme.card}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-base">🔔 Notifications</h3>
+              <button onClick={() => setShowNotifDrawer(false)} className="p-2 rounded-xl bg-slate-200/60">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {myActiveRequests.length === 0 ? (
+              <p className={`text-xs ${theme.textSub}`}>এই মুহূর্তে কোনো নতুন নোটিফিকেশন নেই।</p>
+            ) : (
+              myActiveRequests.map((r) => (
+                <div key={r.id} className="p-3 rounded-2xl border border-slate-200/80 text-xs space-y-1">
+                  <p className="font-black text-rose-600">{r.bloodGroup} রক্তের রিকোয়েস্ট</p>
+                  <p>{r.patientName} • {r.hospital}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
