@@ -4,13 +4,13 @@ import { getDatabase } from "firebase/database";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
-  apiKey: "আপনার_API_KEY_বসান",
+  apiKey: "AIzaSyDOPSl1IifAbenontRpUHkIkhW0RVG1T_4",
   authDomain: "rokto-bondhu-aa008.firebaseapp.com",
   databaseURL: "https://rokto-bondhu-aa008-default-rtdb.firebaseio.com",
   projectId: "rokto-bondhu-aa008",
   storageBucket: "rokto-bondhu-aa008.firebasestorage.app",
-  messagingSenderId: "আপনার_SENDER_ID_বসান",
-  appId: "আপনার_APP_ID_বসান"
+  messagingSenderId: "1010812237612",
+  appId: "1:1010812237612:web:8198765fff34195dc25e89"
 };
 
 // ধাপ ১ থেকে পাওয়া Web Push Certificate (VAPID Key) এখানে বসান
