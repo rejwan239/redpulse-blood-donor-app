@@ -362,7 +362,33 @@ export default function App() {
       Notification.requestPermission().catch(() => {});
     }
   }, []);
+// লগইন করা ইউজারের ফোনের FCM Token Firestore-এ সেভ করা
+useEffect(() => {
+  if (!currentUser?.id) return;
+  requestAndGetFcmToken().then((token) => {
+    if (token && token !== currentUser.fcmToken) {
+      updateDoc(doc(db, 'users', currentUser.id), { fcmToken: token }).catch(() => {});
+    }
+  });
+  const unsubFg = listenForegroundPush((payload) => {
+    const title = payload.notification?.title || '🚨 RedPulse Alert';
+    const body = payload.notification?.body || '';
+    const isAlarm = payload.data?.isAlarm === 'true';
+    triggerAlertNotification(title, body, isAlarm);
+  });
+  return () => unsubFg();
+}, [currentUser?.id]);
 
+// ব্যাকগ্রাউন্ড পুশ ট্রিগার হেল্পার
+const sendBackgroundPush = async (targetTokens, title, body, isAlarm = false) => {
+  try {
+    await fetch('/api/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokens: targetTokens, title, body, isAlarm })
+    });
+  } catch (e) {}
+};
   const triggerAlertNotification = (title, body, isAlarm = false) => {
     playSoundEffect(isAlarm ? 'alarm' : 'chime');
 
@@ -703,6 +729,15 @@ export default function App() {
     };
 
     await addDoc(collection(db, 'bloodRequests'), payload);
+    const targetTokens = users
+  .filter((u) => u.phone !== currentUser.phone && (u.bloodGroup === payload.bloodGroup || payload.isRareSOS || u.role === 'master_admin'))
+  .map((u) => u.fcmToken);
+sendBackgroundPush(
+  targetTokens,
+  isRare ? `🚨 RARE SOS: ${payload.bloodGroup} রক্ত প্রয়োজন!` : `🩸 নতুন রক্তের রিকোয়েস্ট (${payload.bloodGroup})`,
+  `${payload.hospital}-এ ${payload.bags} ব্যাগ ${payload.bloodGroup} রক্ত প্রয়োজন।`,
+  isRare
+);
     setShowRequestModal(false);
     setReqForm({ patientName: '', bloodGroup: 'O+', bags: 1, hospital: '', contactPhone: '', urgency: 'Emergency' });
     triggerAlertNotification(
@@ -793,6 +828,9 @@ export default function App() {
       text: chatText.trim(),
       createdAtMs: Date.now()
     });
+    if (chatReceiver.fcmToken) {
+  sendBackgroundPush([chatReceiver.fcmToken], `💬 নতুন মেসেজ: ${currentUser.name}`, chatText.trim(), false);
+}
     setChatText('');
     playSoundEffect('chime');
   };
@@ -2170,6 +2208,11 @@ export default function App() {
                                 message: `🚨 জরুরি রক্তের প্রয়োজন (${d.bloodGroup})! অনুগ্রহ করে এখনই সাড়া দিন।`
                               }
                             });
+                            if (d.fcmToken) {
+  sendBackgroundPush([d.fcmToken], '🚨 EMERGENCY BLOOD ALARM!', `জরুরি রক্তের প্রয়োজন (${d.bloodGroup})! এখনই অ্যাপ চেক করুন।`, true);
+}if (d.fcmToken) {
+  sendBackgroundPush([d.fcmToken], '🚨 EMERGENCY BLOOD ALARM!', `জরুরি রক্তের প্রয়োজন (${d.bloodGroup})! এখনই অ্যাপ চেক করুন।`, true);
+}
                             alert(`${d.name}-এর ফোনে ইমার্জেন্সি অ্যালার্ম পাঠানো হয়েছে!`);
                           }}
                           className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1 ${theme.btn3d}`}
