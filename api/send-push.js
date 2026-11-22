@@ -1,9 +1,10 @@
-import admin from 'firebase-admin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 
-if (!admin.apps.length) {
+if (!getApps().length) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+  initializeApp({
+    credential: cert(serviceAccount)
   });
 }
 
@@ -14,53 +15,43 @@ export default async function handler(req, res) {
 
   try {
     const { tokens, title, body, isAlarm } = req.body;
-    if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-      return res.status(200).json({ success: false, message: 'No target tokens' });
-    }
+    const validTokens = (tokens || []).filter(Boolean);
 
-    const validTokens = [...new Set(tokens.filter(Boolean))];
     if (validTokens.length === 0) {
-      return res.status(200).json({ success: false, message: 'No valid tokens' });
+      return res.status(200).json({ message: 'No valid tokens to send' });
     }
 
     const message = {
-      tokens: validTokens,
-      notification: {
-        title: title || '🚨 RedPulse Emergency Alert!',
-        body: body || 'জরুরি রক্তের প্রয়োজন বা নতুন মেসেজ এসেছে!'
-      },
+      notification: { title, body },
       data: {
         isAlarm: isAlarm ? 'true' : 'false',
-        title: title || '🚨 RedPulse Emergency Alert!',
-        body: body || 'জরুরি রক্তের প্রয়োজন!'
+        url: '/'
       },
       android: {
         priority: 'high',
         notification: {
           sound: 'default',
           channelId: 'redpulse_urgent',
-          priority: 'max',
-          defaultVibrateTimings: false,
-          vibrateTimingsMillis: [500, 200, 500, 200, 800]
+          priority: 'max'
         }
       },
       webpush: {
-        headers: {
-          Urgency: 'high'
-        },
+        headers: { Urgency: 'high' },
         notification: {
-          icon: 'https://cdn-icons-png.flaticon.com/512/1060/1060648.png',
-          badge: 'https://cdn-icons-png.flaticon.com/512/1060/1060648.png',
-          vibrate: [500, 200, 500, 200, 800],
-          requireInteraction: true,
-          silent: false
+          title,
+          body,
+          icon: '/favicon.ico',
+          requireInteraction: isAlarm ? true : false,
+          vibrate: isAlarm ? [800, 300, 800, 300, 1000] : [300, 100, 300]
         }
-      }
+      },
+      tokens: validTokens
     };
 
-    const response = await admin.messaging().sendEachForMulticast(message);
+    const response = await getMessaging().sendEachForMulticast(message);
     return res.status(200).json({ success: true, sentCount: response.successCount });
   } catch (error) {
+    console.error('Push error:', error);
     return res.status(500).json({ error: error.message });
   }
 }
