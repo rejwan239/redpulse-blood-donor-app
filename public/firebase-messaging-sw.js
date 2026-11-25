@@ -1,6 +1,7 @@
-importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
+// তোমার src/firebase.js ফাইল থেকে firebaseConfig-এর মানগুলো এখানে বসাও
 firebase.initializeApp({
   apiKey: "AIzaSyDOPSl1IifAbenontRpUHkIkhW0RVG1T_4",
   authDomain: "rokto-bondhu-aa008.firebaseapp.com",
@@ -13,34 +14,56 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// অ্যাপ পুরোপুরি বন্ধ (Closed/Killed) অবস্থায় ব্যাকগ্রাউন্ড পুশ ও অ্যালার্ম দেখানো
+// অ্যাপ বন্ধ (Closed/Background) থাকা অবস্থায় পুশ নোটিফিকেশন রিসিভ
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || payload.data?.title || '🚨 RedPulse Emergency Alert!';
-  const body = payload.notification?.body || payload.data?.body || 'জরুরি রক্তের প্রয়োজন!';
-  const isAlarm = payload.data?.isAlarm === 'true';
+  const data = payload.data || {};
+  const isAlarm = data.isAlarm === 'true';
+  const title = payload.notification?.title || data.title || (isAlarm ? '🚨 EMERGENCY BLOOD ALARM!' : '🩸 RedPulse Alert');
+  const body = payload.notification?.body || data.body || 'জরুরি বার্তা দেখতে ট্যাপ করুন';
 
-  self.registration.showNotification(title, {
-    body,
+  const options = {
+    body: body,
     icon: 'https://cdn-icons-png.flaticon.com/512/1060/1060648.png',
     badge: 'https://cdn-icons-png.flaticon.com/512/1060/1060648.png',
-    vibrate: isAlarm ? [1000, 300, 1000, 300, 1000, 300, 1000, 300, 1000] : [300, 150, 300],
-    requireInteraction: isAlarm,
-    silent: false,
+    vibrate: isAlarm ? [800, 200, 800, 200, 800, 200, 1000] : [250, 100, 250],
+    tag: isAlarm ? 'redpulse-emergency-alarm' : `redpulse-msg-${Date.now()}`,
     renotify: true,
-    tag: isAlarm ? 'redpulse-alarm' : 'redpulse-notif',
-    actions: isAlarm ? [{ action: 'open_alarm', title: '🚨 অ্যালার্ম দেখুন ও বন্ধ করুন' }] : [],
-    data: { url: '/' }
-  });
+    requireInteraction: isAlarm,
+    data: data
+  };
+
+  return self.registration.showNotification(title, options);
 });
 
+// নোটিফিকেশনে ক্লিক করলে বন্ধ থাকা অ্যাপ ওপেন হয়ে অ্যালার্ম বা চ্যাটে যাবে
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const data = event.notification.data || {};
+  const isAlarm = data.isAlarm === 'true';
+
+  let targetUrl = '/';
+  if (isAlarm) {
+    targetUrl = `/?alarm=1&msg=${encodeURIComponent(event.notification.body || 'জরুরি রক্তের অ্যালার্ম!')}`;
+  } else if (data.type === 'chat' && data.senderId) {
+    targetUrl = `/?chatWith=${encodeURIComponent(data.senderId)}`;
+  }
+
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ('focus' in client) return client.focus();
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (let client of windowClients) {
+        if ('focus' in client) {
+          client.focus();
+          client.postMessage({
+            type: isAlarm ? 'OPEN_ALARM' : 'OPEN_CHAT',
+            body: event.notification.body,
+            senderId: data.senderId
+          });
+          return;
+        }
       }
-      if (clients.openWindow) return clients.openWindow('/');
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
     })
   );
 });

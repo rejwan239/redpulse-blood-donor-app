@@ -1,10 +1,12 @@
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getMessaging } from 'firebase-admin/messaging';
+import admin from 'firebase-admin';
 
-if (!getApps().length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-  initializeApp({
-    credential: cert(serviceAccount)
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    })
   });
 }
 
@@ -14,44 +16,43 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { tokens, title, body, isAlarm } = req.body;
-    const validTokens = (tokens || []).filter(Boolean);
-
-    if (validTokens.length === 0) {
-      return res.status(200).json({ message: 'No valid tokens to send' });
+    const { tokens, title, body, isAlarm, data = {} } = req.body;
+    if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+      return res.status(200).json({ success: true, message: 'No tokens provided' });
     }
 
     const message = {
+      tokens,
       notification: { title, body },
       data: {
-        isAlarm: isAlarm ? 'true' : 'false',
-        url: '/'
+        ...data,
+        title: String(title || ''),
+        body: String(body || ''),
+        isAlarm: isAlarm ? 'true' : 'false'
       },
       android: {
         priority: 'high',
         notification: {
           sound: 'default',
-          channelId: 'redpulse_urgent',
-          priority: 'max'
+          channelId: isAlarm ? 'emergency_alarm_channel' : 'default_channel',
+          defaultVibrateTimings: false,
+          vibrateTimingsMillis: isAlarm ? [800, 200, 800, 200, 1000] : [250, 100, 250]
         }
       },
       webpush: {
-        headers: { Urgency: 'high' },
+        headers: {
+          Urgency: 'high'
+        },
         notification: {
-          title,
-          body,
-          icon: '/favicon.ico',
-          requireInteraction: isAlarm ? true : false,
-          vibrate: isAlarm ? [800, 300, 800, 300, 1000] : [300, 100, 300]
+          requireInteraction: Boolean(isAlarm),
+          renotify: true
         }
-      },
-      tokens: validTokens
+      }
     };
 
-    const response = await getMessaging().sendEachForMulticast(message);
-    return res.status(200).json({ success: true, sentCount: response.successCount });
+    const response = await admin.messaging().sendEachForMulticast(message);
+    return res.status(200).json({ success: true, response });
   } catch (error) {
-    console.error('Push error:', error);
     return res.status(500).json({ error: error.message });
   }
 }
