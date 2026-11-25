@@ -9,7 +9,17 @@ import {
   collection, addDoc, getDocs, doc, updateDoc, deleteDoc,
   onSnapshot, query, orderBy, serverTimestamp, setDoc, getDoc, increment
 } from 'firebase/firestore';
-import { db, messaging, getToken, onMessage } from './firebase';
+import { db } from './firebase';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+
+let messaging = null;
+try {
+  if (typeof window !== 'undefined' && db?.app) {
+    messaging = getMessaging(db.app);
+  }
+} catch (e) {
+  console.warn('Messaging not supported:', e);
+}
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
