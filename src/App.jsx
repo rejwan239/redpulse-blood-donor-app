@@ -7,7 +7,8 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
-  onSnapshot
+  onSnapshot,
+  increment
 } from 'firebase/firestore';
 import {
   Heart,
@@ -48,7 +49,10 @@ import {
   Coins,
   Ticket,
   BellRing,
-  Hospital
+  Hospital,
+  HandHeart,
+  Eye,
+  Image as ImageIcon
 } from 'lucide-react';
 
 // ============================================================================
@@ -57,6 +61,17 @@ import {
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 const RARE_GROUPS = ['A-', 'B-', 'O-', 'AB-'];
 const COOLDOWN_DAYS = 120;
+
+const COMPATIBILITY = {
+  'A+': { receive: ['A+', 'A-', 'O+', 'O-'], donate: ['A+', 'AB+'] },
+  'A-': { receive: ['A-', 'O-'], donate: ['A+', 'A-', 'AB+', 'AB-'] },
+  'B+': { receive: ['B+', 'B-', 'O+', 'O-'], donate: ['B+', 'AB+'] },
+  'B-': { receive: ['B-', 'O-'], donate: ['B+', 'B-', 'AB+', 'AB-'] },
+  'O+': { receive: ['O+', 'O-'], donate: ['O+', 'A+', 'B+', 'AB+'] },
+  'O-': { receive: ['O-'], donate: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] },
+  'AB+': { receive: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'], donate: ['AB+'] },
+  'AB-': { receive: ['A-', 'B-', 'O-', 'AB-'], donate: ['AB+', 'AB-'] }
+};
 
 const THEMES = {
   crimson: {
@@ -161,13 +176,12 @@ function calculateDonorReadiness(donor) {
   return { isReady: true, daysRemaining: 0, reason: 'রক্তদানের জন্য সম্পূর্ণ প্রস্তুত' };
 }
 
-function compressImageToBase64(file, callback) {
+function compressImageToBase64(file, callback, maxDim = 240) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const maxDim = 240;
       let w = img.width;
       let h = img.height;
       if (w > h) {
@@ -185,7 +199,7 @@ function compressImageToBase64(file, callback) {
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
-      callback(canvas.toDataURL('image/jpeg', 0.78));
+      callback(canvas.toDataURL('image/jpeg', 0.72));
     };
     img.src = e.target.result;
   };
@@ -266,7 +280,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // লগইন মোড: 'donor_signup' (নতুন ইউজার - কোনো PIN ছাড়া), 'donor_login' (আগের ইউজার নাম দিয়ে), 'staff_login' (Admin / Data Entry / Blood Bank - PIN সহ)
+  // লগইন মোড: 'donor_signup', 'donor_login', 'staff_login'
   const [authMode, setAuthMode] = useState('donor_signup');
   const [authForm, setAuthForm] = useState({
     name: '',
@@ -285,10 +299,13 @@ export default function App() {
     devRole: 'Founder & Lead Developer',
     devBio: 'জরুরি মুহূর্তে প্রযুক্তির মাধ্যমে রক্তদাতা ও রোগীর সেতুবন্ধন গড়ার লক্ষ্যে নির্মিত।',
     devContact: '01345365867',
-    coinsPerDonation: 100
+    coinsPerDonation: 100,
+    aidBkash: '01345365867 (Personal)',
+    aidNagad: '01345365867 (Personal)',
+    aidRocket: ''
   });
 
-  // ডেটা কালেকশন
+  // ডেটা কালেকশন (আগের সব কালেকশন + Medical Aid কালেকশন)
   const [users, setUsers] = useState([]);
   const [bloodRequests, setBloodRequests] = useState([]);
   const [contactRequests, setContactRequests] = useState([]);
@@ -296,8 +313,10 @@ export default function App() {
   const [bloodBanks, setBloodBanks] = useState([]);
   const [ambulances, setAmbulances] = useState([]);
   const [partnerHospitals, setPartnerHospitals] = useState([]);
+  const [medicalAids, setMedicalAids] = useState([]);
+  const [aidDonations, setAidDonations] = useState([]);
 
-  // নেভিগেশন ও ভিউ স্টেট — ডিফল্ট ফ্রন্ট পেজ হবে 'request_blood' (মাঝখানের ট্যাব)
+  // নেভিগেশন ও ভিউ স্টেট
   const [activeTab, setActiveTab] = useState('request_blood');
   const [homeSubView, setHomeSubView] = useState(null);
   const [adminSubTab, setAdminSubTab] = useState('radar');
@@ -310,7 +329,6 @@ export default function App() {
   );
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
-  // স্টেল ক্লোজার এড়াতে Refs
   const currentUserRef = useRef(currentUser);
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -340,6 +358,33 @@ export default function App() {
   const [showNotifDrawer, setShowNotifDrawer] = useState(false);
   const [activeAlarmAlert, setActiveAlarmAlert] = useState(null);
   const [trackingRequestModal, setTrackingRequestModal] = useState(null);
+
+  // Request Blood নতুন ফিচার স্টেট
+  const [selectedCompatGroup, setSelectedCompatGroup] = useState('O+');
+
+  // Medical Aid স্টেট
+  const [showAidForm, setShowAidForm] = useState(false);
+  const [aidForm, setAidForm] = useState({
+    patientName: '',
+    hospital: '',
+    problem: '',
+    targetAmount: '',
+    contactPhone: '',
+    proofImage: ''
+  });
+  const [donateModalAid, setDonateModalAid] = useState(null);
+  const [aidDonationForm, setAidDonationForm] = useState({
+    donorName: '',
+    amount: '',
+    method: 'bKash',
+    trxId: ''
+  });
+  const [previewProofImage, setPreviewProofImage] = useState(null);
+  const [aidPaymentEdit, setAidPaymentEdit] = useState({
+    aidBkash: '',
+    aidNagad: '',
+    aidRocket: ''
+  });
 
   // সার্চ ও ফিল্টার
   const [donorSearch, setDonorSearch] = useState('');
@@ -384,7 +429,7 @@ export default function App() {
   const [devEditForm, setDevEditForm] = useState({ devName: '', devRole: '', devBio: '', devContact: '' });
   const [newAmbForm, setNewAmbForm] = useState({ name: '', area: '', phone: '' });
 
-  // পার্টনার হাসপাতাল ও ডিসকাউন্ট ফর্ম (Admin Panel-এর জন্য)
+  // পার্টনার হাসপাতাল ও ডিসকাউন্ট ফর্ম
   const [hospitalForm, setHospitalForm] = useState({
     name: '',
     address: '',
@@ -491,7 +536,6 @@ export default function App() {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       });
 
-      // সার্ভিস ওয়ার্কার থেকে ব্যাকগ্রাউন্ড নোটিফিকেশন ক্লিক/মেসেজ রিসিভ করা
       const handleSwMessage = (event) => {
         if (event.data?.type === 'OPEN_ALARM') {
           setActiveAlarmAlert({
@@ -514,7 +558,6 @@ export default function App() {
     }
   }, []);
 
-  // ইউজার স্ক্রিনে প্রথমবার টাচ/ক্লিক করলেই অডিও ইঞ্জিন আনলক করা
   useEffect(() => {
     window.addEventListener('touchstart', unlockAudioEngine, { passive: true });
     window.addEventListener('click', unlockAudioEngine, { passive: true });
@@ -524,7 +567,6 @@ export default function App() {
     };
   }, []);
 
-  // URL প্যারামিটার চেক (অ্যাপ বন্ধ থাকা অবস্থায় নোটিফিকেশনে ক্লিক করে অ্যাপ খুললে)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('alarm') === '1') {
@@ -544,7 +586,6 @@ export default function App() {
     }
   }, [users]);
 
-  // লগইন করা ইউজারের FCM Token Firestore-এ সেভ করা ও ফোরগ্রাউন্ড পুশ লিসেনার
   useEffect(() => {
     if (!currentUser?.id) return;
     requestAndGetFcmToken()
@@ -566,7 +607,6 @@ export default function App() {
     };
   }, [currentUser?.id]);
 
-  // ব্যাকগ্রাউন্ড পুশ ট্রিগার হেল্পার (অ্যাপ বন্ধ থাকলেও ফোনে বাজানোর জন্য)
   const sendBackgroundPush = async (rawTokens, title, body, isAlarm = false, extraData = {}) => {
     const validTokens = [...new Set((rawTokens || []).filter((t) => typeof t === 'string' && t.trim().length > 10))];
     if (validTokens.length === 0) return;
@@ -598,7 +638,6 @@ export default function App() {
       playSoundEffect('chime', audioCtxRef.current);
     }
 
-    // ১) ইন-অ্যাপ ভিজ্যুয়াল পপ-আপ ব্যানার
     setInAppToast({ id: Date.now(), title, body, isAlarm, extraData });
     if (!isAlarm) {
       setTimeout(() => {
@@ -606,12 +645,11 @@ export default function App() {
       }, 6000);
     }
 
-    // ২) সিস্টেম / সার্ভিস ওয়ার্কার পুশ নোটিফিকেশন
     if ('Notification' in window && Notification.permission === 'granted') {
       const notifOptions = {
         body,
-        icon: 'https://cdn-icons-png.flaticon.com/512/1060/1060648.png',
-        badge: 'https://cdn-icons-png.flaticon.com/512/1060/1060648.png',
+        icon: '/logo.svg?v=5',
+        badge: '/logo.svg?v=5',
         vibrate: isAlarm ? [800, 200, 800, 200, 1000] : [250, 100, 250],
         tag: isAlarm ? 'redpulse-emergency-alarm' : `redpulse-notif-${Date.now()}`,
         renotify: true,
@@ -636,7 +674,7 @@ export default function App() {
   };
 
   // ==========================================================================
-  // ৭. Firebase রিয়েল-টাইম লিসেনারসমূহ (Stale State মুক্ত)
+  // ৭. Firebase রিয়েল-টাইম লিসেনারসমূহ (আগের সব ডেটাবেজ কালেকশন সহ)
   // ==========================================================================
   useEffect(() => {
     const unsubConfig = onSnapshot(doc(db, 'system', 'masterConfig'), (snap) => {
@@ -644,6 +682,11 @@ export default function App() {
         const data = snap.data();
         setMasterConfig((prev) => ({ ...prev, ...data }));
         setCoinsSettingInput(data.coinsPerDonation || 100);
+        setAidPaymentEdit({
+          aidBkash: data.aidBkash || data.phone || '01345365867',
+          aidNagad: data.aidNagad || data.phone || '01345365867',
+          aidRocket: data.aidRocket || ''
+        });
         setSecForm({
           phone: data.phone || '01345365867',
           pin: data.pin || '7596',
@@ -668,7 +711,6 @@ export default function App() {
           (u) => u.id === activeUser.id || (activeUser.phone && u.phone === activeUser.phone)
         );
         if (matchedProfile) {
-          // রিমোট ইমার্জেন্সি অ্যালার্ম চেক
           if (
             matchedProfile.activeAlarm &&
             matchedProfile.activeAlarm.timestamp &&
@@ -697,7 +739,6 @@ export default function App() {
       }
     });
 
-    // নতুন রক্তের রিকোয়েস্ট লিসেনার
     const unsubReqs = onSnapshot(collection(db, 'bloodRequests'), (snap) => {
       const now = Date.now();
       const validReqs = [];
@@ -740,7 +781,6 @@ export default function App() {
       isInitialReqLoadRef.current = false;
     });
 
-    // লাইভ চ্যাট মেসেজ লিসেনার (User ID ও Phone উভয় দিয়েই কাজ করবে)
     const unsubMsgs = onSnapshot(collection(db, 'messages'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       const activeUser = currentUserRef.current;
@@ -784,6 +824,18 @@ export default function App() {
       setPartnerHospitals(list);
     });
 
+    const unsubAids = onSnapshot(collection(db, 'medicalAids'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+      setMedicalAids(list);
+    });
+
+    const unsubAidDonations = onSnapshot(collection(db, 'aidDonations'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+      setAidDonations(list);
+    });
+
     return () => {
       unsubConfig();
       unsubUsers();
@@ -793,6 +845,8 @@ export default function App() {
       unsubBanks();
       unsubAmb();
       unsubHospitals();
+      unsubAids();
+      unsubAidDonations();
     };
   }, []);
 
@@ -837,7 +891,7 @@ export default function App() {
   }, [bloodRequests, currentUser]);
 
   // ==========================================================================
-  // ৯. থিম ও অথেনটিকেশন হ্যান্ডলার (সাধারণ ইউজার PIN ছাড়া, Admin/Staff PIN সহ)
+  // ৯. থিম ও অথেনটিকেশন হ্যান্ডলার
   // ==========================================================================
   const cycleTheme = () => {
     const keys = Object.keys(THEMES);
@@ -851,7 +905,6 @@ export default function App() {
     setAuthError('');
     unlockAudioEngine();
 
-    // ১) নতুন সাধারণ ইউজার অ্যাকাউন্ট (কোনো PIN ছাড়াই — শুধু Username, Blood Group, Address)
     if (authMode === 'donor_signup') {
       const cleanName = authForm.name.trim();
       const cleanAddress = authForm.location.trim();
@@ -893,7 +946,6 @@ export default function App() {
       return;
     }
 
-    // ২) আগের সাধারণ ডোনার লগইন (PIN ছাড়াই নাম দিয়ে প্রবেশ)
     if (authMode === 'donor_login') {
       const cleanName = authForm.name.trim().toLowerCase();
       if (!cleanName) {
@@ -918,7 +970,6 @@ export default function App() {
       return;
     }
 
-    // ৩) Admin / Data Entry / Blood Bank লগইন (অবশ্যই Phone + Secret PIN লাগবে)
     if (authMode === 'staff_login') {
       const cleanPhone = authForm.phone.trim();
       const cleanPin = authForm.pin.trim();
@@ -927,7 +978,6 @@ export default function App() {
         return;
       }
 
-      // Master Admin চেক
       if (cleanPhone === masterConfig.phone && cleanPin === masterConfig.pin) {
         let existingMasterProfile = users.find((u) => u.phone === cleanPhone);
         if (!existingMasterProfile) {
@@ -960,7 +1010,6 @@ export default function App() {
         return;
       }
 
-      // Blood Bank লগইন চেক
       const matchedBank = bloodBanks.find((b) => b.phone === cleanPhone && b.pin === cleanPin);
       if (matchedBank) {
         const bankUser = {
@@ -977,7 +1026,6 @@ export default function App() {
         return;
       }
 
-      // Hired Admin / Data Entry লগইন চেক
       const matchedStaff = users.find(
         (u) =>
           (u.role === 'admin' || u.role === 'data_entry') &&
@@ -1009,7 +1057,7 @@ export default function App() {
   };
 
   // ==========================================================================
-  // ১০. রক্তের রিকোয়েস্ট, কয়েন ক্লেইম ও অন্যান্য অ্যাকশন হ্যান্ডলার
+  // ১০. রক্তের রিকোয়েস্ট, Medical Aid, কয়েন ক্লেইম ও অন্যান্য অ্যাকশন হ্যান্ডলার
   // ==========================================================================
   const handleCreateBloodRequest = async (e) => {
     e.preventDefault();
@@ -1108,6 +1156,72 @@ export default function App() {
       donorLiveLocation: null
     });
     alert(`রক্তদান সম্পন্ন হিসেবে ভেরিফাই করা হয়েছে এবং ডোনারকে ${rewardCoins} কয়েন পাঠানো হয়েছে!`);
+  };
+
+  // Medical Aid আবেদন জমা দেওয়া (Admin Verify-এর জন্য Pending থাকবে)
+  const handleCreateMedicalAid = async (e) => {
+    e.preventDefault();
+    if (!aidForm.patientName || !aidForm.hospital || !aidForm.problem || !aidForm.targetAmount || !aidForm.contactPhone) {
+      alert('সবগুলো তথ্য পূরণ করুন।');
+      return;
+    }
+
+    await addDoc(collection(db, 'medicalAids'), {
+      patientName: aidForm.patientName.trim(),
+      hospital: aidForm.hospital.trim(),
+      problem: aidForm.problem.trim(),
+      targetAmount: Number(aidForm.targetAmount),
+      raisedAmount: 0,
+      contactPhone: aidForm.contactPhone.trim(),
+      proofImage: aidForm.proofImage || '',
+      applicantId: currentUser.id,
+      applicantName: currentUser.name,
+      status: 'pending',
+      createdAtMs: Date.now()
+    });
+
+    setAidForm({ patientName: '', hospital: '', problem: '', targetAmount: '', contactPhone: '', proofImage: '' });
+    setShowAidForm(false);
+    alert('✅ আপনার সাহায্যের আবেদন জমা হয়েছে! অ্যাডমিন যাচাই (Real/Fake চেক) করার পর এটি পাবলিশ হবে।');
+  };
+
+  // Admin-এর মাধ্যমে Medical Aid-এ ডোনেশন সাবমিট
+  const handleSubmitAidDonation = async (e) => {
+    e.preventDefault();
+    if (!aidDonationForm.amount || !aidDonationForm.trxId || !donateModalAid) {
+      alert('টাকার পরিমাণ এবং Transaction ID দিন।');
+      return;
+    }
+
+    await addDoc(collection(db, 'aidDonations'), {
+      aidId: donateModalAid.id,
+      patientName: donateModalAid.patientName,
+      donorId: currentUser.id,
+      donorName: aidDonationForm.donorName.trim() || currentUser.name,
+      amount: Number(aidDonationForm.amount),
+      method: aidDonationForm.method,
+      trxId: aidDonationForm.trxId.trim(),
+      status: 'pending',
+      createdAtMs: Date.now()
+    });
+
+    setDonateModalAid(null);
+    setAidDonationForm({ donorName: '', amount: '', method: 'bKash', trxId: '' });
+    alert('💚 ধন্যবাদ! আপনার ডোনেশন তথ্য জমা হয়েছে। অ্যাডমিন কনফার্ম করলেই রোগীর ফান্ডে যুক্ত হবে।');
+  };
+
+  // Admin: ডোনেশন কনফার্ম করে রোগীর ফান্ড বাড়ানো
+  const handleConfirmAidDonation = async (dn) => {
+    await updateDoc(doc(db, 'aidDonations', dn.id), { status: 'confirmed' });
+    await updateDoc(doc(db, 'medicalAids', dn.aidId), {
+      raisedAmount: increment(Number(dn.amount))
+    });
+    if (dn.donorId) {
+      await updateDoc(doc(db, 'users', dn.donorId), {
+        coins: increment(25)
+      }).catch(() => {});
+    }
+    alert('✅ পেমেন্ট কনফার্ম হয়েছে এবং রোগীর ফান্ড আপডেট করা হয়েছে!');
   };
 
   const handleClaimPendingCoins = async () => {
@@ -1284,7 +1398,7 @@ export default function App() {
   };
 
   // ==========================================================================
-  // ১১. লগইন / সাইন-আপ স্ক্রিন (সাধারণ ইউজার PIN ছাড়া, Admin/Staff PIN সহ)
+  // ১১. লগইন / সাইন-আপ স্ক্রিন
   // ==========================================================================
   if (!currentUser) {
     return (
@@ -1301,14 +1415,15 @@ export default function App() {
 
         <div className={`w-full max-w-md rounded-3xl border p-7 backdrop-blur-md z-10 ${theme.card}`}>
           <div className="flex flex-col items-center text-center mb-6">
-            <div className={`w-16 h-16 rounded-2xl ${theme.btn3d} flex items-center justify-center mb-3`}>
-              <Droplet className="w-9 h-9 fill-current" />
-            </div>
+            <img
+              src="/logo.svg?v=5"
+              alt="RedPulse"
+              className="w-16 h-16 rounded-2xl shadow-lg mb-3 object-contain"
+            />
             <h1 className="text-2xl font-black tracking-tight">RedPulse</h1>
             <p className={`text-xs mt-1 ${theme.textSub}`}>জরুরি রক্তদাতা ও ব্লাড ব্যাংক নেটওয়ার্ক</p>
           </div>
 
-          {/* ৩টি লগইন/সাইন-আপ মোড সুইচার */}
           <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-slate-200/60 dark:bg-slate-800/60 mb-5">
             <button
               type="button"
@@ -1346,7 +1461,6 @@ export default function App() {
           )}
 
           <form onSubmit={handleAuthSubmit} className="space-y-4">
-            {/* ১) নতুন সাধারণ ডোনার অ্যাকাউন্ট — কোনো PIN ছাড়াই */}
             {authMode === 'donor_signup' && (
               <>
                 <div>
@@ -1397,7 +1511,6 @@ export default function App() {
               </>
             )}
 
-            {/* ২) পুরনো সাধারণ ডোনার লগইন — PIN ছাড়া */}
             {authMode === 'donor_login' && (
               <div>
                 <label className="block text-xs font-bold mb-1">আপনার অ্যাকাউন্টের নাম (Username)</label>
@@ -1412,7 +1525,6 @@ export default function App() {
               </div>
             )}
 
-            {/* ৩) Admin / Staff / Blood Bank লগইন — অবশ্যই PIN লাগবে */}
             {authMode === 'staff_login' && (
               <>
                 <div>
@@ -1468,6 +1580,17 @@ export default function App() {
     .filter((u) => (u.verifiedDonations || u.donationCount || 0) > 0)
     .sort((a, b) => (b.verifiedDonations || b.donationCount || 0) - (a.verifiedDonations || a.donationCount || 0));
 
+  const groupReadyCounts = BLOOD_GROUPS.reduce((acc, g) => {
+    acc[g] = availableDonorsList.filter((d) => d.bloodGroup === g).length;
+    return acc;
+  }, {});
+
+  const approvedMedicalAids = medicalAids.filter((a) => a.status === 'approved');
+  const pendingMedicalAids = medicalAids.filter((a) => a.status === 'pending');
+  const pendingAidDonations = aidDonations.filter((d) => d.status === 'pending');
+
+  const liveOpenBloodRequests = bloodRequests.filter((r) => r.status === 'pending' || r.status === 'accepted');
+
   const myActiveRequests = bloodRequests.filter(
     (r) =>
       r.status !== 'completed' &&
@@ -1480,7 +1603,6 @@ export default function App() {
 
   const pendingContactReqs = contactRequests.filter((c) => c.status === 'pending');
 
-  // বটম নেভিগেশন বারে সবার জন্যই শুধু ৩টি ট্যাব: বামে Home | মাঝখানে Request Blood | ডানে Profile
   const bottomNavTabs = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'request_blood', label: 'Request Blood', icon: Droplet, isCenter: true },
@@ -1546,11 +1668,10 @@ export default function App() {
       )}
 
       {/* ==================================================================== */}
-      {/* টপ হেডার বার (বামে Profile | ডানে Special Role Button + Theme + Bell) */}
+      {/* টপ হেডার বার */}
       {/* ==================================================================== */}
       <header className={`sticky top-0 z-30 backdrop-blur-md border-b px-4 py-3 ${theme.navBg}`}>
         <div className="max-w-xl mx-auto flex items-center justify-between gap-2">
-          {/* বাম পাশে প্রোফাইল পিকচার, আসল নাম ও ব্লাড গ্রুপ */}
           <div
             onClick={() => {
               setActiveTab('profile');
@@ -1574,11 +1695,7 @@ export default function App() {
               <h2 className="font-extrabold text-sm leading-tight truncate">{currentUser.name}</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border ${theme.badge}`}>
-                  <img
-  src="/logo.svg?v=5"
-  alt="RedPulse"
-  className="w-10 h-10 rounded-xl shadow-md object-contain"
-/>
+                  <Droplet className="w-3 h-3 fill-current" />
                   {currentUser.bloodGroup}
                 </span>
                 {!isBloodBank && (
@@ -1590,7 +1707,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* ডান পাশে: সবার আগে স্পেশাল রোল বাটন (Admin / Data Entry / Bank Portal), তারপর Theme, তারপর Bell */}
           <div className="flex items-center gap-1.5 shrink-0">
             {(isMasterAdmin || isHiredAdmin) && (
               <button
@@ -1598,13 +1714,18 @@ export default function App() {
                   setActiveTab('admin');
                   setHomeSubView(null);
                 }}
-                className={`px-2.5 py-2 rounded-2xl border text-[11px] font-black flex items-center gap-1 transition-all ${
+                className={`relative px-2.5 py-2 rounded-2xl border text-[11px] font-black flex items-center gap-1 transition-all ${
                   activeTab === 'admin' ? theme.btn3d : `${theme.card} ${theme.accentText}`
                 }`}
                 title="Admin Panel"
               >
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Admin</span>
+                {(pendingMedicalAids.length + pendingAidDonations.length) > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-black flex items-center justify-center">
+                    {pendingMedicalAids.length + pendingAidDonations.length}
+                  </span>
+                )}
               </button>
             )}
 
@@ -1664,14 +1785,13 @@ export default function App() {
         </div>
       </header>
 
-      {/* নোটিফিকেশন ও অ্যালার্ম সাউন্ড পারমিশন ব্যানার (যদি অফ থাকে) */}
       {(notifPermission !== 'granted' || !audioUnlocked) && (
         <div className="max-w-xl w-full mx-auto px-4 pt-3 z-20">
           <button
             onClick={enableNotificationsAndAlarm}
-            className="w-full py-2.5 px-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-xs font-black flex items-center justify-center gap-2 shadow-sm"
+            className="w-full py-2.5 px-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-xs font-black flex items-center justify-center gap-2 shadow-sm text-center"
           >
-            <BellRing className="w-4 h-4 animate-bounce" />
+            <BellRing className="w-4 h-4 animate-bounce shrink-0" />
             <span>জরুরি অ্যালার্ম ও চ্যাট নোটিফিকেশন চালু করতে এখানে ট্যাপ করুন</span>
           </button>
         </div>
@@ -1682,11 +1802,11 @@ export default function App() {
       {/* ==================================================================== */}
       <main className="max-w-xl w-full mx-auto px-4 pt-4 relative z-10 flex-1 flex flex-col">
         {/* ================================================================== */}
-        {/* মাঝখানের ট্যাব (ডিফল্ট ফ্রন্ট পেজ): REQUEST BLOOD TAB */}
+        {/* মাঝখানের ট্যাব: REQUEST BLOOD TAB (৩টি নতুন ফিচারসহ) */}
         {/* ================================================================== */}
         {activeTab === 'request_blood' && (
-          <div className="flex-1 flex flex-col justify-between min-h-[calc(100vh-195px)]">
-            {/* ১. ইনস্ট্যান্ট স্ক্রলিং ব্যানার (ফ্রন্ট পেজেই থাকবে) */}
+          <div className="flex-1 flex flex-col space-y-5 pb-3">
+            {/* ১. ইনস্ট্যান্ট স্ক্রলিং ব্যানার */}
             <div className={`overflow-hidden rounded-2xl border py-2.5 ${theme.card}`}>
               <div className="animate-instant-marquee text-xs font-bold tracking-wide">
                 <span className="mx-4">
@@ -1698,8 +1818,13 @@ export default function App() {
               </div>
             </div>
 
-            {/* ২. স্ক্রিনের ঠিক মাঝখানে বড় 3D প্রিমিয়াম Request Blood বাটন */}
-            <div className="my-auto py-8 flex flex-col items-center justify-center">
+            {/* সেন্টার্ড হেডিং ও বড় 3D Request Blood বাটন */}
+            <div className="py-3 flex flex-col items-center justify-center text-center">
+              <h2 className="text-lg font-black mb-1">জরুরি রক্তের আবেদন ও লাইভ স্ট্যাটাস</h2>
+              <p className={`text-xs mb-4 ${theme.textSub}`}>
+                জরুরি রক্তের প্রয়োজনে নিচের বাটনে চাপ দিন অথবা প্রস্তুত ডোনার দেখুন
+              </p>
+
               <button
                 onClick={() => setShowRequestModal(true)}
                 className={`w-64 py-5 px-6 rounded-3xl font-black text-lg tracking-wide flex items-center justify-center gap-3 transition-all ${theme.btn3d}`}
@@ -1707,18 +1832,14 @@ export default function App() {
                 <Heart className="w-7 h-7 fill-current animate-pulse" />
                 <span>Request Blood</span>
               </button>
-              <p className={`text-[11px] mt-3 font-medium ${theme.textSub}`}>
-                জরুরি রক্তের প্রয়োজনে উপরের বাটনে চাপ দিন
-              </p>
 
-              {/* পেন্ডিং কয়েন ক্লেইম শর্টকাট অ্যালার্ট */}
               {Number(currentUser.pendingClaimCoins || 0) > 0 && (
                 <button
                   onClick={() => {
                     setActiveTab('home');
                     setHomeSubView('claim_reward');
                   }}
-                  className="mt-5 px-4 py-2.5 rounded-2xl bg-emerald-600 text-white text-xs font-black flex items-center gap-2 shadow-lg animate-bounce"
+                  className="mt-4 px-4 py-2.5 rounded-2xl bg-emerald-600 text-white text-xs font-black flex items-center gap-2 shadow-lg animate-bounce"
                 >
                   <Gift className="w-4 h-4" />
                   <span>আপনার {currentUser.pendingClaimCoins} Reward Coin ক্লেইম করুন!</span>
@@ -1726,13 +1847,86 @@ export default function App() {
               )}
             </div>
 
-            {/* ৩. কন্ডিশনাল রিকোয়েস্ট কার্ড */}
-            {myActiveRequests.length > 0 && (
-              <div className="space-y-3 pb-2">
-                <h3 className="text-xs font-black uppercase tracking-wider opacity-75 px-1">
-                  Active Blood Requests ({myActiveRequests.length})
+            {/* ২. ফিচার ১: গ্রুপভিত্তিক প্রস্তুত ডোনার সংখ্যা */}
+            <div className={`p-4 rounded-3xl border ${theme.card}`}>
+              <h3 className="text-xs font-black uppercase tracking-wider text-center mb-3">
+                🩸 গ্রুপভিত্তিক প্রস্তুত ডোনার সংখ্যা ({availableDonorsList.length} জন Ready)
+              </h3>
+              <div className="grid grid-cols-4 gap-2">
+                {BLOOD_GROUPS.map((bg) => (
+                  <button
+                    key={bg}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCompatGroup(bg);
+                      setReqForm((prev) => ({ ...prev, bloodGroup: bg }));
+                    }}
+                    className={`p-2.5 rounded-2xl border text-center transition-all ${
+                      selectedCompatGroup === bg ? theme.btn3d : 'bg-white/70 dark:bg-slate-800/60 border-slate-200/80'
+                    }`}
+                  >
+                    <span className="block text-sm font-black">{bg}</span>
+                    <span className={`text-[11px] font-bold ${selectedCompatGroup === bg ? 'text-white/90' : theme.accentText}`}>
+                      {groupReadyCounts[bg] || 0} জন
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ৩. ফিচার ২: ইন্টারেক্টিভ ব্লাড কম্প্যাটিবিলিটি চার্ট */}
+            <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
+              <div className="text-center">
+                <h3 className="text-xs font-black uppercase tracking-wider">🧬 ব্লাড কম্প্যাটিবিলিটি চার্ট</h3>
+                <p className={`text-[11px] mt-0.5 ${theme.textSub}`}>
+                  গ্রুপ সিলেক্ট করে দেখুন কার থেকে রক্ত নেওয়া যাবে ও কাকে দেওয়া যাবে
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {BLOOD_GROUPS.map((bg) => (
+                  <button
+                    key={bg}
+                    type="button"
+                    onClick={() => setSelectedCompatGroup(bg)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all ${
+                      selectedCompatGroup === bg ? theme.btn3d : 'bg-white/80 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    {bg}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2.5 text-center">
+                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                  <span className="block text-[11px] font-bold text-emerald-600 mb-1">রক্ত নিতে পারবে (Receive)</span>
+                  <span className="text-xs font-black">
+                    {COMPATIBILITY[selectedCompatGroup]?.receive.join(', ')}
+                  </span>
+                </div>
+                <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30">
+                  <span className="block text-[11px] font-bold text-rose-600 mb-1">রক্ত দিতে পারবে (Donate)</span>
+                  <span className="text-xs font-black">
+                    {COMPATIBILITY[selectedCompatGroup]?.donate.join(', ')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ৪. ফিচার ৩: চলমান জরুরি রক্তের অনুরোধসমূহ (লাইভ ফিড) */}
+            <div className="space-y-3">
+              <div className="text-center">
+                <h3 className="text-xs font-black uppercase tracking-wider">
+                  🚨 চলমান জরুরি রক্তের অনুরোধসমূহ ({liveOpenBloodRequests.length})
                 </h3>
-                {myActiveRequests.map((req) => {
+                <p className={`text-[11px] ${theme.textSub}`}>যাদের এখনই রক্ত প্রয়োজন তাদের পাশে দাঁড়ান</p>
+              </div>
+
+              {liveOpenBloodRequests.length === 0 ? (
+                <div className={`p-4 rounded-3xl border text-center text-xs ${theme.card} ${theme.textSub}`}>
+                  বর্তমানে কোনো চলমান রক্তের অনুরোধ নেই।
+                </div>
+              ) : (
+                liveOpenBloodRequests.map((req) => {
                   const isMine =
                     req.requesterId === currentUser.id ||
                     (currentUser.phone && req.requesterPhone === currentUser.phone);
@@ -1740,7 +1934,7 @@ export default function App() {
                     <div key={req.id} className={`rounded-3xl border p-4 backdrop-blur-md ${theme.card}`}>
                       <div className="flex items-center justify-between mb-2">
                         <span className={`px-3 py-1 rounded-full text-xs font-black border ${theme.badge}`}>
-                          {isMine ? '📤 Sending Request' : '📥 Received Request'} • {req.bloodGroup}
+                          {isMine ? '📤 আপনার অনুরোধ' : '📥 জরুরি অনুরোধ'} • {req.bloodGroup}
                         </span>
                         {req.isRareSOS && (
                           <span className="px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black animate-pulse">
@@ -1799,29 +1993,36 @@ export default function App() {
                             ⏳ ডোনারের সাড়ার জন্য অপেক্ষা করা হচ্ছে...
                           </span>
                         )}
+
+                        {req.contactPhone && (
+                          <a
+                            href={`tel:${req.contactPhone}`}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-black"
+                          >
+                            📞 কল
+                          </a>
+                        )}
                       </div>
                     </div>
                   );
-                })}
-              </div>
-            )}
+                })
+              )}
+            </div>
           </div>
         )}
 
         {/* ================================================================== */}
-        {/* বামের ট্যাব: HOME TAB (আগের RedPulse Hub-এর সব মেনু + Claim Reward) */}
+        {/* বামের ট্যাব: HOME TAB (সব মেনু + Medical Aid বাটন + মাঝখানে হেডিং) */}
         {/* ================================================================== */}
         {activeTab === 'home' && (
           <div className="flex-1 flex flex-col">
             {!homeSubView ? (
               <div className="space-y-4">
-                <div className="px-1 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-black">RedPulse Home Hub</h2>
-                    <p className={`text-xs ${theme.textSub}`}>প্রয়োজনীয় সেবা ও রিওয়ার্ড নির্বাচন করুন</p>
-                  </div>
+                <div className="px-1 flex flex-col items-center text-center">
+                  <h2 className="text-lg font-black">RedPulse Home Hub</h2>
+                  <p className={`text-xs ${theme.textSub}`}>প্রয়োজনীয় সেবা, আর্থিক সহায়তা ও রিওয়ার্ড নির্বাচন করুন</p>
                   {Number(currentUser.pendingClaimCoins || 0) > 0 && (
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] font-black animate-pulse">
+                    <span className="mt-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] font-black animate-pulse">
                       +{currentUser.pendingClaimCoins} Coin Ready!
                     </span>
                   )}
@@ -1829,6 +2030,13 @@ export default function App() {
 
                 <div className="grid grid-cols-2 gap-3.5">
                   {[
+                    {
+                      id: 'medical_aid',
+                      title: 'Medical Aid',
+                      sub: `আর্থিক সহায়তা (${approvedMedicalAids.length} টি কেস)`,
+                      icon: HandHeart,
+                      highlight: approvedMedicalAids.length > 0
+                    },
                     {
                       id: 'claim_reward',
                       title: 'Claim Reward',
@@ -1851,16 +2059,16 @@ export default function App() {
                       <button
                         key={item.id}
                         onClick={() => setHomeSubView(item.id)}
-                        className={`p-4 rounded-3xl border text-left transition-all active:translate-y-1 flex flex-col justify-between min-h-[118px] relative ${theme.card} ${
+                        className={`p-4 rounded-3xl border text-center transition-all active:translate-y-1 flex flex-col items-center justify-between min-h-[118px] relative ${theme.card} ${
                           item.highlight ? 'ring-2 ring-emerald-500' : ''
                         }`}
                       >
-                        {item.highlight && (
-                          <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-black">
+                        {item.id === 'claim_reward' && item.highlight && (
+                          <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-black">
                             CLAIM!
                           </span>
                         )}
-                        <div className={`w-11 h-11 rounded-2xl ${theme.btn3d} flex items-center justify-center mb-3`}>
+                        <div className={`w-11 h-11 rounded-2xl ${theme.btn3d} flex items-center justify-center mb-2.5`}>
                           <IconComp className="w-5 h-5" />
                         </div>
                         <div>
@@ -1885,11 +2093,179 @@ export default function App() {
                 </button>
 
                 {/* ========================================================== */}
-                {/* নতুন সাব-ভিউ: CLAIM REWARD & PARTNER HOSPITAL DISCOUNTS */}
+                {/* নতুন সাব-ভিউ: MEDICAL AID (আর্থিক সহায়তা আবেদন ও Admin Verify) */}
                 {/* ========================================================== */}
+                {homeSubView === 'medical_aid' && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col items-center text-center">
+                      <h2 className="text-lg font-black">💚 Medical Aid & মানবিক সহায়তা</h2>
+                      <p className={`text-xs mt-1 ${theme.textSub}`}>
+                        অ্যাডমিন কর্তৃক যাচাইকৃত (Real) রোগীদের চিকিৎসায় সহায়তা করুন
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowAidForm(!showAidForm)}
+                        className={`mt-3 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 ${theme.btn3d}`}
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>{showAidForm ? 'আবেদন ফর্ম বন্ধ করুন' : 'চিকিৎসার জন্য আর্থিক সাহায্যের আবেদন করুন'}</span>
+                      </button>
+                    </div>
+
+                    {/* সাহায্যের আবেদন ফর্ম */}
+                    {showAidForm && (
+                      <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
+                        <div className="text-center">
+                          <h3 className="text-sm font-black">সাহায্য চাওয়ার আবেদন ফর্ম</h3>
+                          <p className={`text-[11px] ${theme.textSub}`}>
+                            আবেদনটি অ্যাডমিন যাচাই (Real/Fake চেক) করার পর পাবলিশ হবে
+                          </p>
+                        </div>
+                        <form onSubmit={handleCreateMedicalAid} className="space-y-3">
+                          <input
+                            type="text"
+                            required
+                            placeholder="রোগীর পূর্ণ নাম"
+                            value={aidForm.patientName}
+                            onChange={(e) => setAidForm({ ...aidForm, patientName: e.target.value })}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                          />
+                          <input
+                            type="text"
+                            required
+                            placeholder="হাসপাতালের নাম ও ঠিকানা"
+                            value={aidForm.hospital}
+                            onChange={(e) => setAidForm({ ...aidForm, hospital: e.target.value })}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                          />
+                          <textarea
+                            rows={3}
+                            required
+                            placeholder="রোগের বিবরণ ও কেন আর্থিক সাহায্য প্রয়োজন"
+                            value={aidForm.problem}
+                            onChange={(e) => setAidForm({ ...aidForm, problem: e.target.value })}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="number"
+                              required
+                              min={100}
+                              placeholder="প্রয়োজনীয় টাকা (৳)"
+                              value={aidForm.targetAmount}
+                              onChange={(e) => setAidForm({ ...aidForm, targetAmount: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                            />
+                            <input
+                              type="tel"
+                              required
+                              placeholder="যোগাযোগের নম্বর"
+                              value={aidForm.contactPhone}
+                              onChange={(e) => setAidForm({ ...aidForm, contactPhone: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                            />
+                          </div>
+                          <label className="p-3 rounded-2xl border border-dashed border-rose-400 bg-rose-500/5 flex flex-col items-center text-center cursor-pointer text-xs font-bold">
+                            <ImageIcon className={`w-5 h-5 mb-1 ${theme.accentText}`} />
+                            <span>প্রেসক্রিপশন বা মেডিকেল রিপোর্টের ছবি দিন (যাচাইয়ের জন্য)</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  compressImageToBase64(file, (b64) => setAidForm((p) => ({ ...p, proofImage: b64 })), 600);
+                                }
+                              }}
+                            />
+                            {aidForm.proofImage && (
+                              <span className="text-[11px] text-emerald-600 font-black mt-1">✓ প্রমাণপত্র ছবি সংযুক্ত হয়েছে</span>
+                            )}
+                          </label>
+                          <button type="submit" className={`w-full py-3 rounded-2xl text-xs font-black ${theme.btn3d}`}>
+                            ভেরিফিকেশনের জন্য আবেদন জমা দিন
+                          </button>
+                        </form>
+                      </div>
+                    )}
+
+                    {/* ভেরিফায়েড ও পাবলিশ হওয়া Medical Aid কেসসমূহ */}
+                    <div className="space-y-3">
+                      {approvedMedicalAids.length === 0 ? (
+                        <div className={`p-6 rounded-3xl border text-center text-xs ${theme.card} ${theme.textSub}`}>
+                          বর্তমানে কোনো ভেরিফায়েড সাহায্যের আবেদন পাবলিশ নেই।
+                        </div>
+                      ) : (
+                        approvedMedicalAids.map((aid) => {
+                          const pct = Math.min(100, Math.round(((aid.raisedAmount || 0) / (aid.targetAmount || 1)) * 100));
+                          return (
+                            <div key={aid.id} className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
+                              <div className="flex items-center justify-between">
+                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] font-black">
+                                  ✓ Admin Verified (Real)
+                                </span>
+                                <span className={`text-[11px] font-bold ${theme.textSub}`}>{aid.hospital}</span>
+                              </div>
+
+                              <div>
+                                <h3 className="font-black text-base">{aid.patientName}</h3>
+                                <p className="text-xs mt-1 leading-relaxed opacity-90">{aid.problem}</p>
+                              </div>
+
+                              {aid.proofImage && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewProofImage(aid.proofImage)}
+                                  className={`inline-flex items-center gap-1.5 text-xs font-black underline ${theme.accentText}`}
+                                >
+                                  <Eye className="w-3.5 h-3.5" /> মেডিকেল প্রমাণপত্র দেখুন
+                                </button>
+                              )}
+
+                              <div>
+                                <div className="flex justify-between text-xs font-black mb-1">
+                                  <span className="text-emerald-600">সংগৃহীত: ৳{aid.raisedAmount || 0}</span>
+                                  <span>লক্ষ্য: ৳{aid.targetAmount} ({pct}%)</span>
+                                </div>
+                                <div className="w-full h-2.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500 rounded-full transition-all"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setDonateModalAid(aid)}
+                                  className="flex-1 py-3 rounded-2xl bg-emerald-600 text-white text-xs font-black shadow-md"
+                                >
+                                  💚 Donate via Admin
+                                </button>
+                                <a
+                                  href={`tel:${aid.contactPhone}`}
+                                  className={`px-4 py-3 rounded-2xl border text-xs font-black ${theme.card}`}
+                                >
+                                  📞 কল
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* সাব-ভিউ: CLAIM REWARD & PARTNER HOSPITAL DISCOUNTS */}
                 {homeSubView === 'claim_reward' && (
                   <div className="space-y-4">
-                    {/* কয়েন ব্যালেন্স ও ক্লেইম কার্ড */}
+                    <div className="text-center">
+                      <h2 className="text-lg font-black">🎁 Claim Reward & হাসপাতাল ছাড়</h2>
+                    </div>
+
                     <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
                       <div className="flex items-center justify-between">
                         <div>
@@ -1927,9 +2303,8 @@ export default function App() {
                       )}
                     </div>
 
-                    {/* পার্টনার হাসপাতাল ও ডিসকাউন্ট অফার তালিকা */}
                     <div className="space-y-3">
-                      <h3 className="text-sm font-black px-1 flex items-center gap-1.5">
+                      <h3 className="text-sm font-black text-center flex items-center justify-center gap-1.5">
                         <Hospital className={`w-4 h-4 ${theme.accentText}`} /> পার্টনার হাসপাতাল ও ডিসকাউন্ট অফার
                       </h3>
 
@@ -1976,10 +2351,9 @@ export default function App() {
                       )}
                     </div>
 
-                    {/* ইউজারের সংগৃহীত ডিসকাউন্ট ভাউচারসমূহ */}
                     {currentUser.claimedVouchers && currentUser.claimedVouchers.length > 0 && (
                       <div className="space-y-2.5 pt-2">
-                        <h3 className="text-sm font-black px-1 flex items-center gap-1.5">
+                        <h3 className="text-sm font-black text-center flex items-center justify-center gap-1.5">
                           <Ticket className={`w-4 h-4 ${theme.accentText}`} /> আপনার সংগৃহীত ডিসকাউন্ট ভাউচার
                         </h3>
                         {currentUser.claimedVouchers.map((v) => (
@@ -2006,7 +2380,7 @@ export default function App() {
                 {/* সাব-ভিউ: DONOR LIST (ALL) ও AVAILABLE DONOR */}
                 {(homeSubView === 'all_donors' || homeSubView === 'available_donors') && (
                   <div className="space-y-4">
-                    <h2 className="text-base font-black">
+                    <h2 className="text-base font-black text-center">
                       {homeSubView === 'all_donors' ? 'Donor List (All)' : 'Available Donors (Ready)'}
                     </h2>
 
@@ -2084,16 +2458,15 @@ export default function App() {
                         ))}
                     </div>
 
-                    {/* রোল-ভিত্তিক লাইভ চ্যাট */}
                     {((homeSubView === 'available_donors' && !isMasterAdmin && !isHiredAdmin) ||
                       (homeSubView === 'all_donors' && (isMasterAdmin || isHiredAdmin))) && (
                       <div className={`mt-5 rounded-3xl border p-4 ${theme.card}`}>
-                        <h3 className="text-xs font-black uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <h3 className="text-xs font-black uppercase tracking-wider mb-3 flex items-center justify-center gap-1.5">
                           <Send className={`w-4 h-4 ${theme.accentText}`} /> Direct Live Chat
                         </h3>
 
                         {!chatReceiver ? (
-                          <p className={`text-xs ${theme.textSub}`}>
+                          <p className={`text-xs text-center ${theme.textSub}`}>
                             চ্যাট শুরু করতে উপরের তালিকা থেকে যেকোনো ডোনারের নামে ক্লিক করে <strong>"Live Chat"</strong> বাটনে চাপ দিন।
                           </p>
                         ) : (
@@ -2160,9 +2533,9 @@ export default function App() {
                 {/* সাব-ভিউ: TOP HEROES */}
                 {homeSubView === 'top_heroes' && (
                   <div className="space-y-3">
-                    <h2 className="text-base font-black">🏆 Top Blood Heroes</h2>
+                    <h2 className="text-base font-black text-center">🏆 Top Blood Heroes</h2>
                     {topHeroesList.length === 0 ? (
-                      <p className={`text-xs ${theme.textSub}`}>এখনো কোনো ভেরিফায়েড রক্তদানের রেকর্ড যুক্ত হয়নি।</p>
+                      <p className={`text-xs text-center ${theme.textSub}`}>এখনো কোনো ভেরিফায়েড রক্তদানের রেকর্ড যুক্ত হয়নি।</p>
                     ) : (
                       topHeroesList.map((hero, idx) => (
                         <div
@@ -2193,7 +2566,7 @@ export default function App() {
                 {/* সাব-ভিউ: BLOOD BANK STOCK */}
                 {homeSubView === 'blood_banks' && (
                   <div className="space-y-4">
-                    <h2 className="text-base font-black">🏥 Blood Bank Live Stock</h2>
+                    <h2 className="text-base font-black text-center">🏥 Blood Bank Live Stock</h2>
                     <div className="relative">
                       <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
                       <input
@@ -2237,7 +2610,7 @@ export default function App() {
                 {/* সাব-ভিউ: HERO CERTIFICATE */}
                 {homeSubView === 'certificate' && (
                   <div className="space-y-4">
-                    <h2 className="text-base font-black">🎖️ RedPulse Lifesaver Certificate</h2>
+                    <h2 className="text-base font-black text-center">🎖️ RedPulse Lifesaver Certificate</h2>
                     <div className={`p-6 rounded-3xl border-2 text-center relative overflow-hidden ${theme.card}`}>
                       <div className="inline-flex p-3 rounded-2xl bg-amber-500/15 text-amber-600 mb-3">
                         <Award className="w-10 h-10" />
@@ -2267,7 +2640,7 @@ export default function App() {
                 {/* সাব-ভিউ: AMBULANCE & HELPLINE */}
                 {homeSubView === 'ambulance' && (
                   <div className="space-y-3">
-                    <h2 className="text-base font-black">🚑 Emergency Ambulance & Helpline</h2>
+                    <h2 className="text-base font-black text-center">🚑 Emergency Ambulance & Helpline</h2>
                     <div className={`p-4 rounded-2xl border flex items-center justify-between ${theme.card}`}>
                       <div>
                         <h4 className="font-bold text-sm">জাতীয় জরুরি সেবা (৯৯৯)</h4>
@@ -2296,7 +2669,7 @@ export default function App() {
                 {/* সাব-ভিউ: PHYSICAL CONDITION TEST */}
                 {homeSubView === 'quiz' && (
                   <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
-                    <h2 className="text-base font-black">🩺 Physical Condition Eligibility Test</h2>
+                    <h2 className="text-base font-black text-center">🩺 Physical Condition Eligibility Test</h2>
                     {[
                       { key: 'age18', label: 'আপনার বয়স কি ১৮ থেকে ৬০ বছরের মধ্যে?' },
                       { key: 'weight50', label: 'আপনার শরীরের ওজন কি ৫০ কেজি বা তার বেশি?' },
@@ -2326,7 +2699,7 @@ export default function App() {
                 {/* সাব-ভিউ: RATE US */}
                 {homeSubView === 'rate' && (
                   <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
-                    <h2 className="text-base font-black">⭐ Rate RedPulse App</h2>
+                    <h2 className="text-base font-black text-center">⭐ Rate RedPulse App</h2>
                     <div className="flex gap-2 justify-center py-2">
                       {[1, 2, 3, 4, 5].map((s) => (
                         <button key={s} type="button" onClick={() => setUserRating({ ...userRating, stars: s })} className="p-2">
@@ -2363,18 +2736,18 @@ export default function App() {
                 {homeSubView === 'about' && (
                   <div className="flex-1 flex flex-col justify-between space-y-6">
                     <div className={`p-5 rounded-3xl border space-y-3.5 ${theme.card}`}>
-                      <h2 className="text-base font-black">🩸 About RedPulse</h2>
+                      <h2 className="text-base font-black text-center">🩸 About RedPulse</h2>
                       <p className="text-xs leading-relaxed opacity-90">
                         <strong>RedPulse</strong> একটি আধুনিক, রিয়েল-টাইম জরুরি রক্তদাতা ও ব্লাড ব্যাংক নেটওয়ার্ক প্ল্যাটফর্ম। জরুরি চিকিৎসা মুহূর্তে রোগীর স্বজনদের সাথে শারীরিকভাবে সুস্থ ও প্রস্তুত রক্তদাতা এবং নিকটস্থ ব্লাড ব্যাংকের দ্রুত, নিরাপদ ও নির্ভরযোগ্য সংযোগ তৈরি করাই আমাদের মূল লক্ষ্য।
                       </p>
 
                       <div className="space-y-2 text-xs pt-2 border-t border-slate-200/60">
                         <p className="font-black uppercase text-[11px] opacity-70">আমাদের মূল বৈশিষ্ট্যসমূহ:</p>
+                        <p>💚 <strong>Medical Aid ও আর্থিক সহায়তা:</strong> অ্যাডমিন কর্তৃক যাচাইকৃত অসহায় রোগীদের চিকিৎসায় সরাসরি সহায়তা করার ব্যবস্থা।</p>
                         <p>🎁 <strong>RedPulse Coin ও হাসপাতাল ডিসকাউন্ট:</strong> রক্তদানের পর কয়েন ক্লেইম করে পার্টনার হাসপাতালগুলোতে বিশেষ ডিসকাউন্ট ভাউচার পাওয়ার সুবিধা।</p>
                         <p>🔒 <strong>১০০% ফোন নম্বর প্রাইভেসি:</strong> অ্যাডমিনের যাচাই ও অনুমোদন ছাড়া কোনো ডোনারের মোবাইল নম্বর প্রকাশ করা হয় না।</p>
                         <p>⏳ <strong>১২০ দিনের নিরাপদ কুলডাউন ও হেলথ ট্র্যাকার:</strong> রক্তদাতার সুস্বাস্থ্য রক্ষায় স্বয়ংক্রিয় ১২০ দিনের বিশ্রাম ট্র্যাকিং।</p>
                         <p>📍 <strong>কনসেন্ট-ভিত্তিক লাইভ GPS লোকেশন:</strong> ডোনার রিকোয়েস্ট গ্রহণ করলেই কেবল রোগীর স্বজন লাইভ ম্যাপে অবস্থান দেখতে পারবেন।</p>
-                        <p>🚨 <strong>Rare Blood SOS ও ইনস্ট্যান্ট অ্যালার্ম:</strong> দুর্লভ রক্তের গ্রুপের জন্য বিশেষ SOS ব্রডকাস্ট ও তাৎক্ষণিক অ্যালার্ট।</p>
                       </div>
                     </div>
 
@@ -2400,7 +2773,8 @@ export default function App() {
         {activeTab === 'profile' && (
           <div className="flex-1 flex flex-col justify-between space-y-6">
             <div className={`p-5 rounded-3xl border space-y-5 ${theme.card}`}>
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-black mx-auto">My Donor Profile</h2>
                 <button
                   onClick={handleLogout}
                   className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 text-rose-600 text-xs font-black flex items-center gap-1"
@@ -2409,8 +2783,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* গোল প্রোফাইল ছবি ও ফটো আপলোড */}
-              <div className="flex flex-col items-center text-center -mt-3">
+              <div className="flex flex-col items-center text-center">
                 <div className="relative">
                   {currentUser.photoURL ? (
                     <img
@@ -2462,7 +2835,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* ১২০ দিনের কুলডাউন ও রেডিনেস ব্যানার */}
               {!isBloodBank && (
                 <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/70 text-center">
                   {(() => {
@@ -2677,7 +3049,7 @@ export default function App() {
         {/* ================================================================== */}
         {activeTab === 'data_entry' && isDataEntry && (
           <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
-            <h2 className="text-base font-black">📝 Manual Offline Donor Entry</h2>
+            <h2 className="text-base font-black text-center">📝 Manual Offline Donor Entry</h2>
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -2781,10 +3153,10 @@ export default function App() {
           <div className="space-y-4">
             {(() => {
               const myBank = bloodBanks.find((b) => b.id === currentUser.bankId);
-              if (!myBank) return <p className="text-xs">ব্লাড ব্যাংক তথ্য পাওয়া যায়নি।</p>;
+              if (!myBank) return <p className="text-xs text-center">ব্লাড ব্যাংক তথ্য পাওয়া যায়নি।</p>;
               return (
                 <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
-                  <div>
+                  <div className="text-center">
                     <h2 className="text-base font-black">🏥 {myBank.name}</h2>
                     <p className={`text-xs ${theme.textSub}`}>
                       {myBank.address} • {myBank.location}
@@ -2836,20 +3208,62 @@ export default function App() {
         )}
 
         {/* ================================================================== */}
-        {/* টপ হেডার থেকে খোলা: ADMIN PANEL (আগের সব কন্ট্রোল + Hospital Rewards) */}
+        {/* টপ হেডার থেকে খোলা: ADMIN PANEL (আগের সব কন্ট্রোল + Medical Aid Verify) */}
         {/* ================================================================== */}
         {activeTab === 'admin' && (isMasterAdmin || isHiredAdmin) && (
           <div className="space-y-4">
-            <h2 className="text-lg font-black px-1">
+            <h2 className="text-lg font-black text-center px-1">
               {isMasterAdmin ? '👑 Master Admin Control' : '🛡️ Admin Coordinator Panel'}
             </h2>
 
             {isHiredAdmin && (
               <div className="space-y-4">
                 <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
-                  <h3 className="text-xs font-black uppercase">📞 পেন্ডিং ফোন নম্বর অ্যাক্সেস রিকোয়েস্ট ({pendingContactReqs.length})</h3>
+                  <h3 className="text-xs font-black uppercase text-center">
+                    💚 Medical Aid Verification ({pendingMedicalAids.length} Pending)
+                  </h3>
+                  {medicalAids.map((aid) => (
+                    <div key={aid.id} className="p-3 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="font-black">{aid.patientName}</span>
+                        <span className="font-bold text-emerald-600">৳{aid.targetAmount}</span>
+                      </div>
+                      <p className="opacity-75">{aid.hospital} • {aid.contactPhone}</p>
+                      <p>{aid.problem}</p>
+                      {aid.proofImage && (
+                        <button
+                          onClick={() => setPreviewProofImage(aid.proofImage)}
+                          className="text-sky-600 font-bold underline"
+                        >
+                          প্রমাণপত্র দেখুন
+                        </button>
+                      )}
+                      <div className="flex gap-2 pt-1">
+                        {aid.status !== 'approved' && (
+                          <button
+                            onClick={() => updateDoc(doc(db, 'medicalAids', aid.id), { status: 'approved' })}
+                            className="flex-1 py-1.5 rounded-xl bg-emerald-600 text-white font-bold"
+                          >
+                            ✓ Real - Publish
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteDoc(doc(db, 'medicalAids', aid.id))}
+                          className="px-3 py-1.5 rounded-xl bg-rose-500/15 text-rose-600 font-bold"
+                        >
+                          Fake / Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
+                  <h3 className="text-xs font-black uppercase text-center">
+                    📞 পেন্ডিং ফোন নম্বর অ্যাক্সেস রিকোয়েস্ট ({pendingContactReqs.length})
+                  </h3>
                   {pendingContactReqs.length === 0 ? (
-                    <p className={`text-xs ${theme.textSub}`}>কোনো পেন্ডিং নম্বর রিকোয়েস্ট নেই।</p>
+                    <p className={`text-xs text-center ${theme.textSub}`}>কোনো পেন্ডিং নম্বর রিকোয়েস্ট নেই।</p>
                   ) : (
                     pendingContactReqs.map((cr) => (
                       <div key={cr.id} className="p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-2">
@@ -2871,7 +3285,7 @@ export default function App() {
                 </div>
 
                 <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
-                  <h3 className="text-xs font-black uppercase">🩸 রক্তের রিকোয়েস্ট রিভিউ ও সমন্বয়</h3>
+                  <h3 className="text-xs font-black uppercase text-center">🩸 রক্তের রিকোয়েস্ট রিভিউ ও সমন্বয়</h3>
                   {bloodRequests.map((req) => (
                     <div key={req.id} className="p-3 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs">
                       <p className="font-black">
@@ -2899,6 +3313,7 @@ export default function App() {
                 <div className="flex gap-2 overflow-x-auto pb-1.5">
                   {[
                     { id: 'radar', label: 'Live Radar & Alarm' },
+                    { id: 'medical_aid', label: `Medical Aid (${pendingMedicalAids.length + pendingAidDonations.length})` },
                     { id: 'hospitals', label: 'Hospital & Rewards' },
                     { id: 'messages', label: 'User Messages' },
                     { id: 'donors', label: 'Manage Donors' },
@@ -2921,7 +3336,7 @@ export default function App() {
                 {/* ১) Live Radar & Emergency Alarm */}
                 {adminSubTab === 'radar' && (
                   <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
-                    <h3 className="text-xs font-black uppercase">📡 Live Donor Radar & Emergency Alarm</h3>
+                    <h3 className="text-xs font-black uppercase text-center">📡 Live Donor Radar & Emergency Alarm</h3>
                     {activeDonorsList.map((d) => (
                       <div key={d.id} className="p-3 rounded-2xl border border-slate-200/70 flex items-center justify-between">
                         <div>
@@ -2959,12 +3374,160 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ২) কোড ছাড়াই পার্টনার হাসপাতাল ও ডিসকাউন্ট কন্ট্রোল */}
+                {/* ২) Medical Aid Verification (Real/Fake) & Donation Confirmation */}
+                {adminSubTab === 'medical_aid' && (
+                  <div className="space-y-4">
+                    {/* Admin Payment Numbers for Medical Aid */}
+                    <div className={`p-4 rounded-3xl border space-y-2.5 ${theme.card}`}>
+                      <h3 className="text-xs font-black uppercase text-center">
+                        💳 ডোনেশন গ্রহণের জন্য অ্যাডমিন পেমেন্ট নম্বর
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input
+                          type="text"
+                          placeholder="bKash নম্বর"
+                          value={aidPaymentEdit.aidBkash}
+                          onChange={(e) => setAidPaymentEdit({ ...aidPaymentEdit, aidBkash: e.target.value })}
+                          className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Nagad নম্বর"
+                          value={aidPaymentEdit.aidNagad}
+                          onChange={(e) => setAidPaymentEdit({ ...aidPaymentEdit, aidNagad: e.target.value })}
+                          className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Rocket নম্বর (ঐচ্ছিক)"
+                          value={aidPaymentEdit.aidRocket}
+                          onChange={(e) => setAidPaymentEdit({ ...aidPaymentEdit, aidRocket: e.target.value })}
+                          className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await setDoc(doc(db, 'system', 'masterConfig'), { ...masterConfig, ...aidPaymentEdit }, { merge: true });
+                          alert('Medical Aid পেমেন্ট নম্বর সেভ হয়েছে!');
+                        }}
+                        className={`w-full py-2.5 rounded-xl text-xs font-black ${theme.btn3d}`}
+                      >
+                        পেমেন্ট নম্বর সেভ করুন
+                      </button>
+                    </div>
+
+                    {/* সাহায্যের আবেদন যাচাই (Real / Fake) */}
+                    <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
+                      <h3 className="text-xs font-black uppercase text-center">
+                        🩺 সাহায্যের আবেদন যাচাই (Real / Fake Check) ({medicalAids.length})
+                      </h3>
+                      {medicalAids.length === 0 ? (
+                        <p className={`text-xs text-center ${theme.textSub}`}>কোনো আবেদন নেই।</p>
+                      ) : (
+                        medicalAids.map((aid) => (
+                          <div key={aid.id} className="p-3.5 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                                  aid.status === 'approved'
+                                    ? 'bg-emerald-500/15 text-emerald-600'
+                                    : 'bg-amber-500/15 text-amber-600'
+                                }`}
+                              >
+                                {aid.status === 'approved' ? 'Published (Real)' : 'Pending Verification'}
+                              </span>
+                              <span className="font-black text-emerald-600">
+                                ৳{aid.raisedAmount || 0} / ৳{aid.targetAmount}
+                              </span>
+                            </div>
+                            <p className="font-black text-sm">{aid.patientName}</p>
+                            <p className="opacity-75">
+                              {aid.hospital} • কল: {aid.contactPhone} (আবেদনকারী: {aid.applicantName})
+                            </p>
+                            <p>{aid.problem}</p>
+                            {aid.proofImage && (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewProofImage(aid.proofImage)}
+                                className="inline-flex items-center gap-1 text-sky-600 font-black underline"
+                              >
+                                <Eye className="w-3.5 h-3.5" /> প্রমাণপত্র ছবি যাচাই করুন
+                              </button>
+                            )}
+                            <div className="flex gap-2 pt-1">
+                              {aid.status !== 'approved' && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateDoc(doc(db, 'medicalAids', aid.id), { status: 'approved' })}
+                                  className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-black"
+                                >
+                                  ✓ Real - Approve & Publish
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => deleteDoc(doc(db, 'medicalAids', aid.id))}
+                                className="px-3.5 py-2 rounded-xl bg-rose-500/15 text-rose-600 font-black"
+                              >
+                                Fake / Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* ডোনারদের পাঠানো পেমেন্ট ও TrxID কনফার্ম */}
+                    <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
+                      <h3 className="text-xs font-black uppercase text-center">
+                        💰 ডোনেশন পেমেন্ট কনফার্মেশন ({aidDonations.length})
+                      </h3>
+                      {aidDonations.length === 0 ? (
+                        <p className={`text-xs text-center ${theme.textSub}`}>কোনো ডোনেশন রেকর্ড নেই।</p>
+                      ) : (
+                        aidDonations.map((dn) => (
+                          <div key={dn.id} className="p-3.5 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs">
+                            <div className="flex justify-between font-black">
+                              <span>দাতা: {dn.donorName}</span>
+                              <span className="text-emerald-600">৳{dn.amount} ({dn.method})</span>
+                            </div>
+                            <p className="opacity-80">রোগী: {dn.patientName}</p>
+                            <p className="font-mono bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+                              TrxID: {dn.trxId}
+                            </p>
+                            <div className="flex gap-2 pt-1">
+                              {dn.status === 'pending' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleConfirmAidDonation(dn)}
+                                  className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-black"
+                                >
+                                  ✓ পেমেন্ট পেয়েছি (Confirm & Add Fund)
+                                </button>
+                              ) : (
+                                <span className="text-emerald-600 font-black">✓ Confirmed</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => deleteDoc(doc(db, 'aidDonations', dn.id))}
+                                className="px-3 py-2 rounded-xl bg-rose-500/15 text-rose-600 font-black"
+                              >
+                                মুছুন
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ৩) কোড ছাড়াই পার্টনার হাসপাতাল ও ডিসকাউন্ট কন্ট্রোল */}
                 {adminSubTab === 'hospitals' && (
                   <div className="space-y-4">
-                    {/* প্রতি রক্তদানে কত কয়েন পাবে তা নির্ধারণ */}
                     <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
-                      <h3 className="text-sm font-black flex items-center gap-1.5">
+                      <h3 className="text-sm font-black text-center flex items-center justify-center gap-1.5">
                         <Coins className="w-4 h-4 text-amber-500" /> প্রতি রক্তদানে Reward Coin নির্ধারণ
                       </h3>
                       <div className="flex gap-2">
@@ -2992,9 +3555,8 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* নতুন পার্টনার হাসপাতাল ও ডিসকাউন্ট যোগ/এডিট ফর্ম */}
                     <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
-                      <h3 className="text-sm font-black">
+                      <h3 className="text-sm font-black text-center">
                         {editingHospitalId ? '✏️ হাসপাতাল ও ডিসকাউন্ট এডিট করুন' : '🏥 নতুন পার্টনার হাসপাতাল ও ডিসকাউন্ট যোগ করুন'}
                       </h3>
                       <form
@@ -3115,9 +3677,10 @@ export default function App() {
                       </form>
                     </div>
 
-                    {/* যুক্ত করা পার্টনার হাসপাতালের তালিকা */}
                     <div className={`p-4 rounded-3xl border space-y-2.5 ${theme.card}`}>
-                      <h3 className="text-xs font-black uppercase">যুক্ত করা পার্টনার হাসপাতালসমূহ ({partnerHospitals.length})</h3>
+                      <h3 className="text-xs font-black uppercase text-center">
+                        যুক্ত করা পার্টনার হাসপাতালসমূহ ({partnerHospitals.length})
+                      </h3>
                       {partnerHospitals.map((h) => (
                         <div key={h.id} className="p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-2">
                           <div className="text-xs">
@@ -3158,13 +3721,13 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ৩) সব ইউজারের মেসেজ মনিটরিং */}
+                {/* ৪) সব ইউজারের মেসেজ মনিটরিং */}
                 {adminSubTab === 'messages' && (
                   <div className={`p-4 rounded-3xl border space-y-3 ${theme.card}`}>
-                    <h3 className="text-xs font-black uppercase">💬 All User Messages (Sender ➔ Receiver)</h3>
+                    <h3 className="text-xs font-black uppercase text-center">💬 All User Messages (Sender ➔ Receiver)</h3>
                     <div className="space-y-2.5 max-h-[420px] overflow-y-auto">
                       {messages.length === 0 ? (
-                        <p className={`text-xs ${theme.textSub}`}>কোনো মেসেজ নেই।</p>
+                        <p className={`text-xs text-center ${theme.textSub}`}>কোনো মেসেজ নেই।</p>
                       ) : (
                         messages.map((m) => (
                           <div key={m.id} className="p-3 rounded-2xl border border-slate-200/80 space-y-1.5">
@@ -3184,11 +3747,13 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ৪) সব ডোনার ম্যানেজমেন্ট ও A-to-Z এডিট */}
+                {/* ৫) সব ডোনার ম্যানেজমেন্ট ও A-to-Z এডিট */}
                 {adminSubTab === 'donors' && (
                   <div className="space-y-4">
                     <div className={`p-4 rounded-3xl border space-y-2.5 ${theme.card}`}>
-                      <h3 className="text-xs font-black uppercase">🔑 Pending Phone Number Requests ({pendingContactReqs.length})</h3>
+                      <h3 className="text-xs font-black uppercase text-center">
+                        🔑 Pending Phone Number Requests ({pendingContactReqs.length})
+                      </h3>
                       {pendingContactReqs.map((cr) => (
                         <div key={cr.id} className="p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between">
                           <span className="text-xs font-bold">
@@ -3205,7 +3770,9 @@ export default function App() {
                     </div>
 
                     <div className={`p-4 rounded-3xl border space-y-2.5 ${theme.card}`}>
-                      <h3 className="text-xs font-black uppercase">👥 All Donors (Full A-to-Z Profile Edit, Coins & Ban)</h3>
+                      <h3 className="text-xs font-black uppercase text-center">
+                        👥 All Donors (Full A-to-Z Profile Edit, Coins & Ban)
+                      </h3>
                       {users.map((u) => (
                         <div key={u.id} className="p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between">
                           <div>
@@ -3249,11 +3816,11 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ৫) স্পেশাল অ্যাকাউন্ট তৈরি */}
+                {/* ৬) স্পেশাল অ্যাকাউন্ট তৈরি */}
                 {adminSubTab === 'create' && (
                   <div className="space-y-4">
                     <div className={`p-5 rounded-3xl border space-y-4 ${theme.card}`}>
-                      <h3 className="text-sm font-black">➕ Create Special Account (Email OTP Protected)</h3>
+                      <h3 className="text-sm font-black text-center">➕ Create Special Account (Email OTP Protected)</h3>
                       <div className="grid grid-cols-3 gap-2">
                         {[
                           { id: 'admin', label: 'Admin' },
@@ -3353,7 +3920,7 @@ export default function App() {
                     </div>
 
                     <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
-                      <h3 className="text-xs font-black uppercase">🚑 Add Emergency Ambulance</h3>
+                      <h3 className="text-xs font-black uppercase text-center">🚑 Add Emergency Ambulance</h3>
                       <input
                         type="text"
                         placeholder="অ্যাম্বুলেন্স সার্ভিসের নাম"
@@ -3393,10 +3960,10 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ৬) Admin Manual Donor Entry */}
+                {/* ৭) Admin Manual Donor Entry */}
                 {adminSubTab === 'data_entry' && (
                   <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
-                    <h3 className="text-sm font-black">📝 Admin Manual Donor Entry</h3>
+                    <h3 className="text-sm font-black text-center">📝 Admin Manual Donor Entry</h3>
                     <form
                       onSubmit={async (e) => {
                         e.preventDefault();
@@ -3468,11 +4035,11 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ৭) Security & Developer Info */}
+                {/* ৮) Security & Developer Info */}
                 {adminSubTab === 'security' && (
                   <div className="space-y-4">
                     <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
-                      <h3 className="text-sm font-black">🔐 Master Admin Security (Email OTP Required)</h3>
+                      <h3 className="text-sm font-black text-center">🔐 Master Admin Security (Email OTP Required)</h3>
                       <div>
                         <label className="block text-[11px] font-bold mb-1">Recovery Email</label>
                         <input
@@ -3530,7 +4097,7 @@ export default function App() {
                     </div>
 
                     <div className={`p-5 rounded-3xl border space-y-3 ${theme.card}`}>
-                      <h3 className="text-sm font-black">👨‍💻 Edit Developer Information</h3>
+                      <h3 className="text-sm font-black text-center">👨‍💻 Edit Developer Information</h3>
                       <div>
                         <label className="block text-[11px] font-bold mb-1">Developer Name</label>
                         <input
@@ -3587,7 +4154,7 @@ export default function App() {
       </main>
 
       {/* ==================================================================== */}
-      {/* 3D ফ্লোটিং বটম নেভিগেশন বার (Home | মাঝখানে Request Blood | Profile) */}
+      {/* 3D ফ্লোটিং বটম নেভিগেশন বার */}
       {/* ==================================================================== */}
       <nav className={`fixed bottom-3 left-3 right-3 max-w-xl mx-auto z-30 rounded-3xl border px-3 py-2 backdrop-blur-lg ${theme.navBg}`}>
         <div className="grid grid-cols-3 items-center gap-2">
@@ -3617,6 +4184,85 @@ export default function App() {
           })}
         </div>
       </nav>
+
+      {/* ==================================================================== */}
+      {/* পপ-আপ: Admin-এর মাধ্যমে Medical Aid ডোনেশন মডাল */}
+      {/* ==================================================================== */}
+      {donateModalAid && (
+        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-3xl border p-6 space-y-4 max-h-[90vh] overflow-y-auto ${theme.card}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-base">💚 Admin-এর মাধ্যমে ডোনেশন</h3>
+              <button onClick={() => setDonateModalAid(null)} className="p-2 rounded-xl bg-slate-200/60">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs space-y-1.5">
+              <p className="font-black text-emerald-700 dark:text-emerald-300">রোগী: {donateModalAid.patientName}</p>
+              <p className="opacity-85">
+                অ্যাডমিনের নিচের অফিশিয়াল নম্বরে টাকা পাঠিয়ে Transaction ID (TrxID) সাবমিট করুন। অ্যাডমিন যাচাই করে রোগীর ফান্ডে যুক্ত করবেন।
+              </p>
+              <div className="pt-1 space-y-1 font-bold">
+                {masterConfig.aidBkash && <p>• bKash: <span className="text-rose-600">{masterConfig.aidBkash}</span></p>}
+                {masterConfig.aidNagad && <p>• Nagad: <span className="text-orange-600">{masterConfig.aidNagad}</span></p>}
+                {masterConfig.aidRocket && <p>• Rocket: <span className="text-purple-600">{masterConfig.aidRocket}</span></p>}
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitAidDonation} className="space-y-3">
+              <input
+                type="text"
+                placeholder="আপনার নাম (ঐচ্ছিক)"
+                value={aidDonationForm.donorName}
+                onChange={(e) => setAidDonationForm({ ...aidDonationForm, donorName: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  required
+                  min={10}
+                  placeholder="টাকার পরিমাণ (৳)"
+                  value={aidDonationForm.amount}
+                  onChange={(e) => setAidDonationForm({ ...aidDonationForm, amount: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+                />
+                <select
+                  value={aidDonationForm.method}
+                  onChange={(e) => setAidDonationForm({ ...aidDonationForm, method: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs font-bold"
+                >
+                  <option value="bKash">bKash</option>
+                  <option value="Nagad">Nagad</option>
+                  <option value="Rocket">Rocket</option>
+                </select>
+              </div>
+              <input
+                type="text"
+                required
+                placeholder="Transaction ID (TrxID)"
+                value={aidDonationForm.trxId}
+                onChange={(e) => setAidDonationForm({ ...aidDonationForm, trxId: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs"
+              />
+              <button type="submit" className="w-full py-3.5 rounded-2xl bg-emerald-600 text-white text-xs font-black shadow-lg">
+                ডোনেশন তথ্য সাবমিট করুন
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* প্রমাণপত্র ছবি বড় করে দেখার লাইটবক্স */}
+      {previewProofImage && (
+        <div
+          onClick={() => setPreviewProofImage(null)}
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+        >
+          <img src={previewProofImage} alt="Medical Proof" className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl" />
+        </div>
+      )}
 
       {/* ==================================================================== */}
       {/* পপ-আপ ১: ডোনার প্রোফাইল ডিটেইলস মডাল */}
@@ -4119,7 +4765,7 @@ export default function App() {
       )}
 
       {/* ==================================================================== */}
-      {/* পপ-আপ ৬: ইমার্জেন্সি অ্যালার্ম স্ক্রিন (বাটন চাপলে সাইরেন ও ভাইব্রেশন থামবে) */}
+      {/* পপ-আপ ৬: ইমার্জেন্সি অ্যালার্ম স্ক্রিন */}
       {/* ==================================================================== */}
       {activeAlarmAlert && (
         <div className="fixed inset-0 z-50 bg-rose-950/90 backdrop-blur-md flex items-center justify-center p-5 text-white text-center">
