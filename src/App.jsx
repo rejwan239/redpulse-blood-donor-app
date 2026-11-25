@@ -1574,7 +1574,11 @@ export default function App() {
               <h2 className="font-extrabold text-sm leading-tight truncate">{currentUser.name}</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border ${theme.badge}`}>
-                  <Droplet className="w-2.5 h-2.5 fill-current" />
+                  <img
+  src="/logo.svg?v=5"
+  alt="RedPulse"
+  className="w-10 h-10 rounded-xl shadow-md object-contain"
+/>
                   {currentUser.bloodGroup}
                 </span>
                 {!isBloodBank && (
